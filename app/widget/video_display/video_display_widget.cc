@@ -13,19 +13,21 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
 
     file_edit_ = new QLineEdit(this);
     file_edit_->setFixedWidth(360);
-    auto select_file_btn = new QPushButton("select", this);
+    auto select_file_btn = new QPushButton(tr("select"), this);
     connect(select_file_btn, &QPushButton::clicked, this, &VideoDisplayWidget::SelectFileClicked);
 
     player_ = new VideoPlayerWidget(this);
     connect(player_, &VideoPlayerWidget::PlayState, this, &VideoDisplayWidget::PlayState);
 
-    play_btn_ = new QPushButton("play", this);
+    auto fill_bg_wiget = new QWidget(this);
+
+    play_btn_ = new QPushButton(tr("play"), this);
     play_btn_->setFixedHeight(32);
 
-    pause_btn_ = new QPushButton("pause", this);
+    pause_btn_ = new QPushButton(tr("pause"), this);
     pause_btn_->setFixedHeight(32);
 
-    auto stop_btn = new QPushButton("stop", this);
+    auto stop_btn = new QPushButton(tr("stop"), this);
     stop_btn->setFixedHeight(32);
 
     play_stop_widget_ = new QStackedWidget(this);
@@ -46,7 +48,8 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     btn_layout->addWidget(stop_btn);
 
     auto mainLayout = new QVBoxLayout(this);
-    mainLayout->addWidget(player_);
+    mainLayout->addWidget(player_, 9);
+    mainLayout->addWidget(fill_bg_wiget);
     mainLayout->addLayout(btn_layout);
 }
 
