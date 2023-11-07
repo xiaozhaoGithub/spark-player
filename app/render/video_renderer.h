@@ -50,6 +50,8 @@ public:
     inline VideoPlayState playstate();
     inline void set_playstate(VideoPlayState state);
 
+    inline void set_decode_mode(bool is_soft);
+
 signals:
     void UpdateImage(const QImage& image);
     void PlayState(bool state);
@@ -59,10 +61,11 @@ public Q_SLOTS:
 
 private:
     FFmpegDecoder* decoder_;
+    QTime elapsed_timer_;
 
     QByteArray filename_;
     VideoPlayState playstate_;
-    QTime elapsed_timer_;
+    bool soft_decode_;
 };
 
 inline QByteArray VideoRenderWorker::filename()
@@ -85,5 +88,9 @@ inline void VideoRenderWorker::set_playstate(VideoPlayState state)
     playstate_ = state;
 }
 
+inline void VideoRenderWorker::set_decode_mode(bool is_soft)
+{
+    decoder_->set_decode_mode(is_soft);
+}
 
 #endif

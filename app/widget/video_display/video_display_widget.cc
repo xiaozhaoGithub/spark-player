@@ -3,7 +3,10 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include <QRadioButton>
 
+#include "common/singleton.h"
+#include "config/config.h"
 #include "render/video_renderer.h"
 
 VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
@@ -40,10 +43,16 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     connect(pause_btn_, &QPushButton::clicked, this, &VideoDisplayWidget::PauseClicked);
     connect(stop_btn, &QPushButton::clicked, this, &VideoDisplayWidget::StopClicked);
 
+    auto software_dc = new QRadioButton(tr("soft decoding"), this);
+    auto hardware_dc = new QRadioButton(tr("hard decoding"), this);
+    software_dc->setChecked(true);
+
     auto btn_layout = new QHBoxLayout;
     btn_layout->addWidget(file_edit_);
     btn_layout->addWidget(select_file_btn);
     btn_layout->addStretch(9);
+    btn_layout->addWidget(software_dc);
+    btn_layout->addWidget(hardware_dc);
     btn_layout->addWidget(play_stop_widget_);
     btn_layout->addWidget(stop_btn);
 

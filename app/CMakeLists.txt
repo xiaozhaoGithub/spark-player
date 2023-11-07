@@ -5,6 +5,8 @@ set(Sources
 add_subdirectory(codec)
 add_subdirectory(render)
 add_subdirectory(widget)
+add_subdirectory(common)
+add_subdirectory(config)
 
 QT5_ADD_RESOURCES(RCC_FILES "")
 

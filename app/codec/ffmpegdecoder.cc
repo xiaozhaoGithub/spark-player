@@ -13,7 +13,9 @@ FFmpegDecoder::FFmpegDecoder(QObject* parent)
     , packet_(nullptr)
     , frame_(nullptr)
     , image_buf_(nullptr)
+    , soft_decode_(true)
     , end_(true)
+    , pts_(0)
 {
     fmt_ctx_ = avformat_alloc_context();
 }
