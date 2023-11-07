@@ -6,13 +6,14 @@
 
 FFmpegDecoder::FFmpegDecoder(QObject* parent)
     : QObject(parent)
-    , end_(true)
     , fmt_ctx_(nullptr)
     , codec_ctx_(nullptr)
     , sws_ctx_(nullptr)
     , stream_(nullptr)
     , packet_(nullptr)
     , frame_(nullptr)
+    , image_buf_(nullptr)
+    , end_(true)
 {
     fmt_ctx_ = avformat_alloc_context();
 }
