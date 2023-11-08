@@ -20,8 +20,7 @@ FFmpegDecoder::FFmpegDecoder(QObject* parent)
     , end_(true)
     , pts_(0)
 {
-    fmt_ctx_ = avformat_alloc_context();
-
+    // Find Hardware Codec Devices.
     AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
     while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
         hw_devices.push_back(type);
@@ -104,10 +103,10 @@ bool FFmpegDecoder::Open(const char* filename)
         return false;
     }
 
-    bool enable_hardware_dc =
+    bool enable_hw_dc =
         Singleton<Config>::Instance()->AppConfigData("video_param", "enable_hardware_dc", false).toBool();
-    if (enable_hardware_dc) {
-        InitHardWareDc();
+    if (enable_hw_dc) {
+        InitHwDecode(codec);
     }
 
     error_code = avcodec_open2(codec_ctx_, codec, &dict);
@@ -128,6 +127,12 @@ bool FFmpegDecoder::Open(const char* filename)
     frame_ = av_frame_alloc();
     if (!frame_) {
         SPDLOG_ERROR("Failed to alloc frame.");
+        return false;
+    }
+
+    hw_frame_ = av_frame_alloc();
+    if (!hw_frame_) {
+        SPDLOG_ERROR("Failed to alloc hw frame.");
         return false;
     }
 
@@ -161,6 +166,10 @@ void FFmpegDecoder::Close()
 
     if (frame_) {
         av_frame_free(&frame_);
+    }
+
+    if (hw_frame_) {
+        av_frame_free(&hw_frame_);
     }
 
     if (image_buf_) {
@@ -214,11 +223,24 @@ QImage FFmpegDecoder::GetFrame()
         }
         return QImage();
     }
-    pts_ = frame_->pts;
+
+    // The first byte of hw data is nullptr.
+    AVFrame* tmp_frame = frame_;
+    if (!frame_->data[0]) {
+        tmp_frame = hw_frame_;
+        bool ret = GpuDataToCpu();
+        av_frame_unref(frame_);
+
+        if (!ret) {
+            return QImage();
+        }
+    }
+
+    pts_ = tmp_frame->pts;
 
     if (!sws_ctx_) {
-        sws_ctx_ = sws_getContext(frame_->width, frame_->height,
-                                  static_cast<AVPixelFormat>(frame_->format),
+        sws_ctx_ = sws_getContext(tmp_frame->width, tmp_frame->height,
+                                  static_cast<AVPixelFormat>(tmp_frame->format),
                                   video_resolution_.width(), video_resolution_.height(),
                                   AV_PIX_FMT_RGBA, SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
         if (!sws_ctx_) {
@@ -228,13 +250,14 @@ QImage FFmpegDecoder::GetFrame()
     }
 
     int linesizes[4];
-    av_image_fill_linesizes(linesizes, AV_PIX_FMT_RGBA, frame_->width);
+    av_image_fill_linesizes(linesizes, AV_PIX_FMT_RGBA, tmp_frame->width);
 
     uint8_t* image_buf[] = {image_buf_};
-    sws_scale(sws_ctx_, frame_->data, frame_->linesize, 0, frame_->height, image_buf, linesizes);
+    sws_scale(sws_ctx_, tmp_frame->data, tmp_frame->linesize, 0, tmp_frame->height, image_buf,
+              linesizes);
 
-    QImage image(image_buf_, frame_->width, frame_->height, QImage::Format_RGBA8888);
-    av_frame_unref(frame_);
+    QImage image(image_buf_, tmp_frame->width, tmp_frame->height, QImage::Format_RGBA8888);
+    av_frame_unref(tmp_frame);
 
     return image;
 }
@@ -243,7 +266,59 @@ void FFmpegDecoder::FFmpegError(int error_code)
 {
     char error_buf[1024];
     av_strerror(error_code, error_buf, sizeof(error_buf));
-    SPDLOG_ERROR("Error code: {} desc: {}", error_code, error_buf);
+    SPDLOG_ERROR("Error code: {0} desc: {1}", error_code, error_buf);
 }
 
-void FFmpegDecoder::InitHardWareDc() {}
+void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
+{
+    for (int i = 0;; i++) {
+        const AVCodecHWConfig* hw_config = avcodec_get_hw_config(codec, i);
+        if (!hw_config) {
+            SPDLOG_ERROR("Failed to get codec hardware configuration");
+            return;
+        }
+
+        if (hw_config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) {
+            if (hw_devices.contains(hw_config->device_type)) {
+                int ret =
+                    av_hwdevice_ctx_create(&hw_dev_ctx_, hw_config->device_type, nullptr, nullptr, 0);
+                if (ret != 0) {
+                    SPDLOG_ERROR("Failed to open specified type of hw device or create ctx.");
+                    return;
+                }
+                codec_ctx_->hw_device_ctx = av_buffer_ref(hw_dev_ctx_);
+                codec_ctx_->opaque = (void*)(&hw_config->pix_fmt);
+                codec_ctx_->get_format = get_hw_format;
+            }
+        }
+    }
+}
+
+bool FFmpegDecoder::GpuDataToCpu()
+{
+    // av_hwframe_transfer_data((hw_frame_, frame_, 0);
+    int ret = av_hwframe_map(hw_frame_, frame_, 0);
+    if (ret != 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    // copy frame meta data.
+    av_frame_copy_props(hw_frame_, frame_);
+
+    return true;
+}
+
+AVPixelFormat FFmpegDecoder::get_hw_format(AVCodecContext* ctx, const AVPixelFormat* fmt)
+{
+    AVPixelFormat* pix_fmt = static_cast<AVPixelFormat*>(ctx->opaque);
+
+    for (auto p = fmt; *p != -1; p++) {
+        if (*p == *pix_fmt) {
+            return *p;
+        }
+    }
+
+    SPDLOG_ERROR("Failed to get hardware pixel format, AV_PIX_FMT_NONE will return.");
+    return AV_PIX_FMT_NONE;
+}

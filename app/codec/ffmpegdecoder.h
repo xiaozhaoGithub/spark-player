@@ -34,7 +34,11 @@ public:
 
 private:
     void FFmpegError(int error_code);
-    void InitHardWareDc();
+    void InitHwDecode(const AVCodec* codec);
+    bool GpuDataToCpu();
+
+    // callback
+    static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* fmt);
 
 private:
     AVFormatContext* fmt_ctx_;
@@ -43,6 +47,9 @@ private:
     AVStream* stream_;
     AVPacket* packet_;
     AVFrame* frame_;
+
+    AVFrame* hw_frame_;
+    AVBufferRef* hw_dev_ctx_;
     QVector<uint32_t> hw_devices;
 
     int64_t video_duration_;
