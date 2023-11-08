@@ -4,6 +4,7 @@
 
 #include "common/singleton.h"
 #include "config/config.h"
+#include "spdlog/spdlog.h"
 #include "widget/video_display/video_display_widget.h"
 
 FFmpegDecoder::FFmpegDecoder(QObject* parent)
@@ -41,7 +42,7 @@ bool FFmpegDecoder::Open(const char* filename)
 
     int error_code = avformat_open_input(&fmt_ctx_, filename, nullptr, &dict);
     if (error_code != 0) {
-        printf("Failed to open input stream.\n");
+        SPDLOG_ERROR("Failed to open input stream.");
         return false;
     }
 
@@ -49,24 +50,23 @@ bool FFmpegDecoder::Open(const char* filename)
         av_dict_free(&dict);
     }
 
-    printf("--------------- File Information ----------------\n");
+    SPDLOG_INFO("--------------- File Information ----------------.");
     av_dump_format(fmt_ctx_, 0, filename, 0);
-    printf("-------------------------------------------------\n");
+    SPDLOG_INFO("-------------------------------------------------");
 
     error_code = avformat_find_stream_info(fmt_ctx_, nullptr);
     if (error_code < 0) {
-        printf("Failed to find stream information.\n");
+        SPDLOG_ERROR("Failed to find stream information.");
         return false;
     }
 
     video_duration_ = fmt_ctx_->duration / (AV_TIME_BASE / 1000);
     QString duration = QTime::fromMSecsSinceStartOfDay(video_duration_).toString("HH:mm:ss zzz");
-    printf(
-        QString("Video total time:%1ms, [%2]\n").arg(video_duration_).arg(duration).toStdString().c_str());
+    SPDLOG_INFO("Video total time:{0}ms, [{1}].", video_duration_, duration.toStdString());
 
     int video_index = av_find_best_stream(fmt_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
     if (video_index < 0) {
-        printf("Failed to find a video stream.\n");
+        SPDLOG_ERROR("Failed to find a video stream.");
         return false;
     }
 
@@ -79,28 +79,28 @@ bool FFmpegDecoder::Open(const char* filename)
 
     const AVCodec* codec = avcodec_find_decoder(stream_->codecpar->codec_id);
     if (!codec) {
-        printf("Failed to find Codec.\n");
+        SPDLOG_ERROR("Failed to find Codec.");
         return false;
     }
-    printf("resolution£º [w:%d, h:%d] frame rate:%lf total frames:%lld codec name:% s\n",
-           video_resolution_.width(), video_resolution_.height(), frame_rate_, frame_num_,
-           codec->name);
+    SPDLOG_INFO("resolution: [w:{0}, h:{1}] frame rate:{2} total frames:{3} codec name:{4}",
+                video_resolution_.width(), video_resolution_.height(), frame_rate_, frame_num_,
+                codec->name);
 
     codec_ctx_ = avcodec_alloc_context3(codec);
     if (!codec_ctx_) {
-        printf("Failed to create video decoder context.\n");
+        SPDLOG_ERROR("Failed to create video decoder context.");
         return false;
     }
 
     error_code = avcodec_parameters_to_context(codec_ctx_, stream_->codecpar);
     if (error_code < 0) {
-        printf("Failed to fill the codec context.\n");
+        SPDLOG_ERROR("Failed to fill the codec context.");
         return false;
     }
 
     error_code = av_dict_set(&dict, "threads", "auto", 0);
     if (error_code < 0) {
-        printf("Failed to set codec options, performance may suffer.\n");
+        SPDLOG_ERROR("Failed to set codec options, performance may suffer.");
         return false;
     }
 
@@ -112,7 +112,7 @@ bool FFmpegDecoder::Open(const char* filename)
 
     error_code = avcodec_open2(codec_ctx_, codec, &dict);
     if (error_code < 0) {
-        printf("Failed to open codec.\n");
+        SPDLOG_ERROR("Failed to open codec.");
         return false;
     }
 
@@ -122,12 +122,12 @@ bool FFmpegDecoder::Open(const char* filename)
 
     packet_ = av_packet_alloc();
     if (!packet_) {
-        printf("Failed to alloc packet.\n");
+        SPDLOG_ERROR("Failed to alloc packet.");
         return false;
     }
     frame_ = av_frame_alloc();
     if (!frame_) {
-        printf("Failed to alloc frame.\n");
+        SPDLOG_ERROR("Failed to alloc frame.");
         return false;
     }
 
@@ -222,7 +222,7 @@ QImage FFmpegDecoder::GetFrame()
                                   video_resolution_.width(), video_resolution_.height(),
                                   AV_PIX_FMT_RGBA, SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
         if (!sws_ctx_) {
-            printf("Failed to get sws context.\n");
+            SPDLOG_ERROR("Failed to get sws context.");
             return QImage();
         }
     }
@@ -243,7 +243,7 @@ void FFmpegDecoder::FFmpegError(int error_code)
 {
     char error_buf[1024];
     av_strerror(error_code, error_buf, sizeof(error_buf));
-    printf("Error code: %d desc: %s\n", error_code, error_buf);
+    SPDLOG_ERROR("Error code: {} desc: {}", error_code, error_buf);
 }
 
 void FFmpegDecoder::InitHardWareDc() {}

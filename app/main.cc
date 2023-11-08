@@ -1,8 +1,9 @@
 #include "widget/video_display/video_display_widget.h"
 
 #include <QApplication>
-#include <QDebug>
 #include <QTextCodec>
+
+#include "spdlog/spdlog.h"
 
 int main(int argc, char* argv[])
 {
@@ -21,7 +22,7 @@ int main(int argc, char* argv[])
 #if LIBAVFILTER_VERSION_INT < AV_VERSION_INT(7, 14, 100)
     // avfilter_register_all();
 #endif
-    qDebug() << "version: " << avcodec_version();
+    SPDLOG_INFO("version: {0}", avcodec_version());
 
     return a->exec();
 }

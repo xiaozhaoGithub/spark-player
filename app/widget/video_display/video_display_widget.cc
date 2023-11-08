@@ -1,7 +1,6 @@
 #include "video_display_widget.h"
 
 #include <QButtonGroup>
-#include <QDebug>
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QRadioButton>
