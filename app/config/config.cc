@@ -22,18 +22,18 @@ void Config::SetAppConfigData(const QString& group, const QString& key, const QV
     SetConfigData(app_settings_, group, key, value);
 }
 
-QVariant Config::AppConfigData(const QString& group, const QString& key, const QVariant& defaut)
+QVariant Config::AppConfigData(const QString& group, const QString& key, const QVariant& default)
 {
-    return AppConfigData(app_settings_, group, key, defaut);
+    return AppConfigData(app_settings_, group, key, default);
 }
 
 QVariant Config::AppConfigData(QSettings* settings, const QString& group, const QString& key,
-                               const QVariant& defaut)
+                               const QVariant& default)
 {
     if (group.isEmpty() || key.isEmpty() || !settings)
-        return defaut;
+        return default;
 
-    return settings->value(QString("%1/%2").arg(group).arg(key), defaut);
+    return settings->value(QString("%1/%2").arg(group).arg(key), default);
 }
 
 void Config::SetConfigData(QSettings* settings, const QString& group, const QString& key,

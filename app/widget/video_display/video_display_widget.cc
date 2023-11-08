@@ -45,7 +45,9 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
 
     auto software_dc = new QRadioButton(tr("soft decoding"), this);
     auto hardware_dc = new QRadioButton(tr("hard decoding"), this);
-    software_dc->setChecked(true);
+
+    hardware_dc->setChecked(
+        Singleton<Config>::Instance()->AppConfigData("video_param", "enable_hardware_dc", false).toBool());
 
     auto dc_btn_group = new QButtonGroup(this);
     dc_btn_group->addButton(software_dc, 0);
