@@ -1,5 +1,6 @@
 #include "video_display_widget.h"
 
+#include <QButtonGroup>
 #include <QDebug>
 #include <QFileDialog>
 #include <QHBoxLayout>
@@ -47,6 +48,12 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     auto hardware_dc = new QRadioButton(tr("hard decoding"), this);
     software_dc->setChecked(true);
 
+    auto dc_btn_group = new QButtonGroup(this);
+    dc_btn_group->addButton(software_dc, 0);
+    dc_btn_group->addButton(hardware_dc, 1);
+    connect(dc_btn_group, qOverload<int>(&QButtonGroup::buttonClicked), this,
+            &VideoDisplayWidget::DecodeBtnClicked);
+
     auto btn_layout = new QHBoxLayout;
     btn_layout->addWidget(file_edit_);
     btn_layout->addWidget(select_file_btn);
@@ -81,6 +88,11 @@ void VideoDisplayWidget::PauseClicked()
 void VideoDisplayWidget::StopClicked()
 {
     player_->Stop();
+}
+
+void VideoDisplayWidget::DecodeBtnClicked(int id)
+{
+    Singleton<Config>::Instance()->SetAppConfigData("video_param", "enable_hardware_dc", (bool)id);
 }
 
 void VideoDisplayWidget::SelectFileClicked()

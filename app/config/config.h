@@ -2,6 +2,8 @@
 #define CONFIG_H_
 
 #include <QObject>
+#include <QSettings>
+#include <Windows.h>
 
 class Config : public QObject
 {
@@ -10,8 +12,19 @@ public:
     explicit Config(QObject* parent = nullptr);
     ~Config();
 
-private:
-};
+    void SetAppConfigData(const QString& group, const QString& key, const QVariant& value);
+    QVariant AppConfigData(const QString& group, const QString& key, const QVariant& qdefault);
 
+    quint32 GetConfigFileDir(char* filename, quint32 size);
+
+private:
+    void SetConfigData(QSettings* settings, const QString& group, const QString& key,
+                       const QVariant& value);
+    QVariant AppConfigData(QSettings* settings, const QString& group, const QString& key,
+                           const QVariant& qdefault);
+
+private:
+    QSettings* app_settings_;
+};
 
 #endif

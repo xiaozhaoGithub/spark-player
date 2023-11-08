@@ -34,6 +34,7 @@ public:
 
 private:
     void FFmpegError(int error_code);
+    void InitHardWareDc();
 
 private:
     AVFormatContext* fmt_ctx_;
@@ -42,6 +43,7 @@ private:
     AVStream* stream_;
     AVPacket* packet_;
     AVFrame* frame_;
+    QVector<uint32_t> hw_devices;
 
     int64_t video_duration_;
     double frame_rate_;

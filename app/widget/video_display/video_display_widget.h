@@ -25,11 +25,11 @@ public:
     ~VideoDisplayWidget();
 
 private slots:
+    void SelectFileClicked();
     void PlayClicked();
     void PauseClicked();
     void StopClicked();
-
-    void SelectFileClicked();
+    void DecodeBtnClicked(int id);
 
     void PlayState(bool playing);
 

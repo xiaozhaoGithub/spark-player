@@ -1,8 +1,10 @@
 #include "ffmpegdecoder.h"
 
-#include "widget/video_display/video_display_widget.h"
-#include <QCoreApplication>
 #include <QImage>
+
+#include "common/singleton.h"
+#include "config/config.h"
+#include "widget/video_display/video_display_widget.h"
 
 FFmpegDecoder::FFmpegDecoder(QObject* parent)
     : QObject(parent)
@@ -18,6 +20,11 @@ FFmpegDecoder::FFmpegDecoder(QObject* parent)
     , pts_(0)
 {
     fmt_ctx_ = avformat_alloc_context();
+
+    AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
+    while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
+        hw_devices.push_back(type);
+    }
 }
 
 FFmpegDecoder::~FFmpegDecoder()
@@ -95,6 +102,12 @@ bool FFmpegDecoder::Open(const char* filename)
     if (error_code < 0) {
         printf("Failed to set codec options, performance may suffer.\n");
         return false;
+    }
+
+    bool enable_hardware_dc =
+        Singleton<Config>::Instance()->AppConfigData("video_param", "enable_hardware_dc", false).toBool();
+    if (enable_hardware_dc) {
+        InitHardWareDc();
     }
 
     error_code = avcodec_open2(codec_ctx_, codec, &dict);
@@ -232,3 +245,5 @@ void FFmpegDecoder::FFmpegError(int error_code)
     av_strerror(error_code, error_buf, sizeof(error_buf));
     printf("Error code: %d desc: %s\n", error_code, error_buf);
 }
+
+void FFmpegDecoder::InitHardWareDc() {}
