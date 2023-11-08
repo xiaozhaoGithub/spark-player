@@ -31,6 +31,8 @@ LIST(APPEND FFMPEG_DEMO_LIBRARIES
 	swscale
 )
 LIST(APPEND FFMPEG_DEMO_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/third_party/ffmpeg/include)
+LIST(APPEND FFMPEG_DEMO_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/third_party/spdlog/include)
+
 LIST(APPEND FFMPEG_DEMO_LIB_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/third_party/ffmpeg/lib)
 
 add_subdirectory(app)
