@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
 #if LIBAVFILTER_VERSION_INT < AV_VERSION_INT(7, 14, 100)
     // avfilter_register_all();
 #endif
-    SPDLOG_INFO("version: {0}", avcodec_version());
+    SPDLOG_INFO("codec version: {0}", avcodec_version());
 
     return a->exec();
 }

@@ -16,6 +16,7 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
 
     file_edit_ = new QLineEdit(this);
     file_edit_->setFixedWidth(360);
+    file_edit_->setText("E:\\WorkSpace\\test\\123.mp4");
     auto select_file_btn = new QPushButton(tr("select"), this);
     connect(select_file_btn, &QPushButton::clicked, this, &VideoDisplayWidget::SelectFileClicked);
 
@@ -46,8 +47,10 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     auto software_dc = new QRadioButton(tr("soft decoding"), this);
     auto hardware_dc = new QRadioButton(tr("hard decoding"), this);
 
-    hardware_dc->setChecked(
-        Singleton<Config>::Instance()->AppConfigData("video_param", "enable_hardware_dc", false).toBool());
+    bool enable_hw_decode =
+        Singleton<Config>::Instance()->AppConfigData("video_param", "enable_hw_decode", false).toBool();
+    software_dc->setChecked(enable_hw_decode ? false : true);
+    hardware_dc->setChecked(enable_hw_decode ? true : false);
 
     auto dc_btn_group = new QButtonGroup(this);
     dc_btn_group->addButton(software_dc, 0);
@@ -93,7 +96,7 @@ void VideoDisplayWidget::StopClicked()
 
 void VideoDisplayWidget::DecodeBtnClicked(int id)
 {
-    Singleton<Config>::Instance()->SetAppConfigData("video_param", "enable_hardware_dc", (bool)id);
+    Singleton<Config>::Instance()->SetAppConfigData("video_param", "enable_hw_decode", (bool)id);
 }
 
 void VideoDisplayWidget::SelectFileClicked()
