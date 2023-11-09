@@ -14,7 +14,7 @@ extern "C"
 #include <libswscale/swscale.h>
 }
 
-#include "widget/video_display/qpainter_render/video_display.h"
+#include "widget/video_display/qpainter_render/video_player_widget.h"
 
 class VideoDisplayWidget : public QWidget
 {

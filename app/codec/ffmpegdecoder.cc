@@ -15,6 +15,7 @@ FFmpegDecoder::FFmpegDecoder(QObject* parent)
     , stream_(nullptr)
     , packet_(nullptr)
     , frame_(nullptr)
+    , hw_frame_(nullptr)
     , image_buf_(nullptr)
     , soft_decode_(true)
     , end_(true)
@@ -104,7 +105,7 @@ bool FFmpegDecoder::Open(const char* filename)
     }
 
     bool enable_hw_dc =
-        Singleton<Config>::Instance()->AppConfigData("video_param", "enable_hardware_dc", false).toBool();
+        Singleton<Config>::Instance()->AppConfigData("video_param", "enable_hw_decode", false).toBool();
     if (enable_hw_dc) {
         InitHwDecode(codec);
     }
@@ -119,30 +120,10 @@ bool FFmpegDecoder::Open(const char* filename)
         av_dict_free(&dict);
     }
 
-    packet_ = av_packet_alloc();
-    if (!packet_) {
-        SPDLOG_ERROR("Failed to alloc packet.");
-        return false;
-    }
-    frame_ = av_frame_alloc();
-    if (!frame_) {
-        SPDLOG_ERROR("Failed to alloc frame.");
-        return false;
-    }
+    bool is_alloc = AllocResource();
+    end_ = !is_alloc;
 
-    hw_frame_ = av_frame_alloc();
-    if (!hw_frame_) {
-        SPDLOG_ERROR("Failed to alloc hw frame.");
-        return false;
-    }
-
-    int size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, video_resolution_.width(),
-                                        video_resolution_.height(), 4);
-
-    image_buf_ = new uint8_t[size];
-    end_ = false;
-
-    return true;
+    return is_alloc;
 }
 
 void FFmpegDecoder::Close()
@@ -269,6 +250,33 @@ void FFmpegDecoder::FFmpegError(int error_code)
     SPDLOG_ERROR("Error code: {0} desc: {1}", error_code, error_buf);
 }
 
+bool FFmpegDecoder::AllocResource()
+{
+    packet_ = av_packet_alloc();
+    if (!packet_) {
+        SPDLOG_ERROR("Failed to alloc packet.");
+        return false;
+    }
+    frame_ = av_frame_alloc();
+    if (!frame_) {
+        SPDLOG_ERROR("Failed to alloc frame.");
+        return false;
+    }
+
+    hw_frame_ = av_frame_alloc();
+    if (!hw_frame_) {
+        SPDLOG_ERROR("Failed to alloc hw frame.");
+        return false;
+    }
+
+    int size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, video_resolution_.width(),
+                                        video_resolution_.height(), 4);
+
+    image_buf_ = new uint8_t[size];
+
+    return true;
+}
+
 void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
 {
     for (int i = 0;; i++) {
@@ -289,6 +297,7 @@ void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
                 codec_ctx_->hw_device_ctx = av_buffer_ref(hw_dev_ctx_);
                 codec_ctx_->opaque = (void*)(&hw_config->pix_fmt);
                 codec_ctx_->get_format = get_hw_format;
+                return;
             }
         }
     }
@@ -296,8 +305,7 @@ void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
 
 bool FFmpegDecoder::GpuDataToCpu()
 {
-    // av_hwframe_transfer_data((hw_frame_, frame_, 0);
-    int ret = av_hwframe_map(hw_frame_, frame_, 0);
+    int ret = av_hwframe_transfer_data(hw_frame_, frame_, 0);
     if (ret != 0) {
         FFmpegError(ret);
         return false;

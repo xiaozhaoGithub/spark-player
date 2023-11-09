@@ -1,5 +1,5 @@
-#ifndef VIDEO_DISPLAY_H_
-#define VIDEO_DISPLAY_H_
+#ifndef VIDEO_PLAYER_WIDGET_H_
+#define VIDEO_PLAYER_WIDGET_H_
 
 #include <QContextMenuEvent>
 #include <QLabel>
@@ -11,6 +11,7 @@
 #include <mutex>
 
 #include "render/video_renderer.h"
+
 class VideoPlayerWidget : public QWidget
 {
     Q_OBJECT

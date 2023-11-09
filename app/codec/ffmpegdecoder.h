@@ -34,6 +34,7 @@ public:
 
 private:
     void FFmpegError(int error_code);
+    bool AllocResource();
     void InitHwDecode(const AVCodec* codec);
     bool GpuDataToCpu();
 
