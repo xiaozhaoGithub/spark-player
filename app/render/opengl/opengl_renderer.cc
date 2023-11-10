@@ -82,14 +82,8 @@ void OpenGLRenderer::InitRenderData()
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(sprite_vertices), sprite_vertices, GL_STATIC_DRAW);
 
-    GLuint pos1 = shader_program_->attributeLocation("a_position");
-    GLuint pos2 = shader_program_->attributeLocation("a_texcoord");
-
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 4, nullptr);
-
-    // glEnableVertexAttribArray(1);
-    // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, nullptr);
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
