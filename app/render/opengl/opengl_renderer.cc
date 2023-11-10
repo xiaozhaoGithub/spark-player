@@ -69,6 +69,37 @@ void OpenGLRenderer::Draw(GLuint texture, const QVector2D& pos, const QVector2D&
     shader_program_->release();
 }
 
+void OpenGLRenderer::Draw(std::shared_ptr<QOpenGLTexture> y, std::shared_ptr<QOpenGLTexture> u,
+                          std::shared_ptr<QOpenGLTexture> v, const QVector2D& size)
+{
+    shader_program_->bind();
+    shader_program_->setUniformValue("y_tex", 0);
+    shader_program_->setUniformValue("u_tex", 1);
+    shader_program_->setUniformValue("v_tex", 2);
+
+    QMatrix4x4 proj_mat;
+    proj_mat.ortho(0.0f, size_.x(), size_.y(), 0.0f, -1.0f, 1.0f);
+    shader_program_->setUniformValue("proj_mat", proj_mat);
+
+    QMatrix4x4 model_mat;
+    model_mat.translate(QVector2D(0.0f, 0.0f));
+    model_mat.scale(size);
+    shader_program_->setUniformValue("model_mat", model_mat);
+
+    if (y && y->isCreated() && u && u->isCreated() && v && v->isCreated()) {
+        y->bind(0);
+        u->bind(1);
+        v->bind(2);
+    }
+
+    glBindVertexArray(vao_);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    shader_program_->release();
+}
+
 void OpenGLRenderer::InitRenderData()
 {
     initializeOpenGLFunctions();

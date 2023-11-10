@@ -2,5 +2,7 @@
     <qresource prefix="/">
         <file>res/shaders/sprite.vert</file>
         <file>res/shaders/sprite.frag</file>
+        <file>res/shaders/yuv2rgb.vert</file>
+        <file>res/shaders/yuv2rgb.frag</file>
     </qresource>
 </RCC>

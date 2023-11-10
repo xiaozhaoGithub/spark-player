@@ -4,6 +4,7 @@
 #include <QContextMenuEvent>
 #include <QMenu>
 #include <QOpenGLFunctions>
+#include <QOpenGLPixelTransferOptions>
 #include <QOpenGLTexture>
 #include <QOpenGLWidget>
 #include <QWidget>
@@ -38,7 +39,7 @@ private:
     void InitMenu();
 
 private slots:
-    void UpdateImage(const QImage& image);
+    void ProcessFrame(AVFrame* frame);
     void FullScreenClicked();
     void ExitFullScreenClicked();
 
@@ -47,8 +48,12 @@ private:
     std::shared_ptr<OpenGLRenderer> renderer_;
 
     std::mutex mutex_;
-    QImage image_;
-    std::shared_ptr<QOpenGLTexture> video_tex_;
+
+    QSize frame_size_;
+    QOpenGLPixelTransferOptions pix_transfer_opts_;
+    std::shared_ptr<QOpenGLTexture> y_tex_;
+    std::shared_ptr<QOpenGLTexture> u_tex_;
+    std::shared_ptr<QOpenGLTexture> v_tex_;
 
     quint32 vao_;
 

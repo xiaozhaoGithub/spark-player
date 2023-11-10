@@ -27,7 +27,7 @@ public:
     void Close();
 
     int GetPacket(AVPacket* pkt);
-    QImage GetFrame();
+    AVFrame* GetFrame();
 
     inline bool is_end();
     inline int64_t pts();

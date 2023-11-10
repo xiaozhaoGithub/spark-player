@@ -171,10 +171,10 @@ int FFmpegDecoder::GetPacket(AVPacket* pkt)
     return ret;
 }
 
-QImage FFmpegDecoder::GetFrame()
+AVFrame* FFmpegDecoder::GetFrame()
 {
     if (!fmt_ctx_)
-        return QImage();
+        return nullptr;
 
     int ret = GetPacket(packet_);
     if (ret == 0) {
@@ -202,7 +202,7 @@ QImage FFmpegDecoder::GetFrame()
         if (ret < 0) {
             end_ = true;
         }
-        return QImage();
+        return nullptr;
     }
 
     // The first byte of hw data is nullptr.
@@ -213,7 +213,7 @@ QImage FFmpegDecoder::GetFrame()
         av_frame_unref(frame_);
 
         if (!ret) {
-            return QImage();
+            return nullptr;
         }
     }
 
@@ -226,21 +226,21 @@ QImage FFmpegDecoder::GetFrame()
                                   AV_PIX_FMT_RGBA, SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
         if (!sws_ctx_) {
             SPDLOG_ERROR("Failed to get sws context.");
-            return QImage();
+            return nullptr;
         }
     }
 
-    int linesizes[4];
-    av_image_fill_linesizes(linesizes, AV_PIX_FMT_RGBA, tmp_frame->width);
+    // int linesizes[4];
+    // av_image_fill_linesizes(linesizes, AV_PIX_FMT_RGBA, tmp_frame->width);
 
-    uint8_t* image_buf[] = {image_buf_};
-    sws_scale(sws_ctx_, tmp_frame->data, tmp_frame->linesize, 0, tmp_frame->height, image_buf,
-              linesizes);
+    // uint8_t* image_buf[] = {image_buf_};
+    // sws_scale(sws_ctx_, tmp_frame->data, tmp_frame->linesize, 0, tmp_frame->height, image_buf,
+    //          linesizes);
 
-    QImage image(image_buf_, tmp_frame->width, tmp_frame->height, QImage::Format_RGBA8888);
-    av_frame_unref(tmp_frame);
+    // QImage image(image_buf_, tmp_frame->width, tmp_frame->height, QImage::Format_RGBA8888);
+    // av_frame_unref(tmp_frame);
 
-    return image;
+    return tmp_frame;
 }
 
 void FFmpegDecoder::FFmpegError(int error_code)

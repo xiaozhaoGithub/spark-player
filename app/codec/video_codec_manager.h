@@ -23,6 +23,7 @@ public:
 
 signals:
     void UpdateImage(const QImage& image);
+    void SendFrame(AVFrame* frame);
     void PlayState(bool state);
 
 private:
@@ -53,7 +54,7 @@ public:
     inline void set_decode_mode(bool is_soft);
 
 signals:
-    void UpdateImage(const QImage& image);
+    void SendFrame(AVFrame* frame);
     void PlayState(bool state);
 
 public Q_SLOTS:

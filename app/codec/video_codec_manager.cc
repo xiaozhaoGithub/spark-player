@@ -8,7 +8,7 @@ VideoCodecManager::VideoCodecManager(QObject* parent)
 
     worker_ = std::make_unique<VideoCodecWorker>();
     worker_->moveToThread(thread_);
-    connect(worker_.get(), &VideoCodecWorker::UpdateImage, this, &VideoCodecManager::UpdateImage);
+    connect(worker_.get(), &VideoCodecWorker::SendFrame, this, &VideoCodecManager::SendFrame);
     connect(worker_.get(), &VideoCodecWorker::PlayState, this, &VideoCodecManager::PlayState);
 
     thread_->start();
@@ -68,16 +68,14 @@ void VideoCodecWorker::Run()
             QThread::msleep(200);
         }
 
-        QImage frame_image = decoder_->GetFrame();
-        if (!frame_image.isNull()) {
-            int time = elapsed_timer_.elapsed();
-            int pts = decoder_->pts();
-            int ms = pts - time;
+        AVFrame* frame = decoder_->GetFrame();
+        if (frame) {
+            int ms = decoder_->pts() - elapsed_timer_.elapsed();
             if (ms > 0) {
                 QThread::msleep(ms);
             }
 
-            emit UpdateImage(frame_image.copy());
+            emit SendFrame(frame);
         } else {
             if (decoder_->is_end()) {
                 playstate_ = kStop;
