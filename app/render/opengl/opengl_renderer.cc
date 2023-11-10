@@ -45,7 +45,7 @@ void OpenGLRenderer::Draw(GLuint texture, const QVector2D& pos, const QVector2D&
 {
     shader_program_->bind();
     shader_program_->setUniformValue("main_tex", 0);
-    shader_program_->setUniformValue("sprite_color", QVector3D(1.0f, 0.0f, 0.0f));
+    shader_program_->setUniformValue("sprite_color", color);
 
     QMatrix4x4 proj_mat;
     proj_mat.ortho(0.0f, size_.x(), size_.y(), 0.0f, -1.0f, 1.0f);
