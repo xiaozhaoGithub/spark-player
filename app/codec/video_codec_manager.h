@@ -1,5 +1,5 @@
-#ifndef VIDEO_RENDERER_H_
-#define VIDEO_RENDERER_H_
+#ifndef VIDEO_CODEC_MANAGER_
+#define VIDEO_CODEC_MANAGER_
 
 #include <QElapsedTimer>
 #include <QImage>
@@ -9,13 +9,13 @@
 
 #include "codec/ffmpegdecoder.h"
 
-class VideoRenderWorker;
-class VideoRenderer : public QObject
+class VideoCodecWorker;
+class VideoCodecManager : public QObject
 {
     Q_OBJECT
 public:
-    explicit VideoRenderer(QObject* parent = nullptr);
-    ~VideoRenderer();
+    explicit VideoCodecManager(QObject* parent = nullptr);
+    ~VideoCodecManager();
 
     void Open(const char* name);
     void Pause();
@@ -27,15 +27,15 @@ signals:
 
 private:
     QThread* thread_;
-    std::unique_ptr<VideoRenderWorker> worker_;
+    std::unique_ptr<VideoCodecWorker> worker_;
 };
 
-class VideoRenderWorker : public QObject
+class VideoCodecWorker : public QObject
 {
     Q_OBJECT
 public:
-    explicit VideoRenderWorker(QObject* parent = nullptr);
-    ~VideoRenderWorker();
+    explicit VideoCodecWorker(QObject* parent = nullptr);
+    ~VideoCodecWorker();
 
     enum VideoPlayState
     {
@@ -68,27 +68,27 @@ private:
     bool soft_decode_;
 };
 
-inline QByteArray VideoRenderWorker::filename()
+inline QByteArray VideoCodecWorker::filename()
 {
     return filename_;
 }
 
-inline void VideoRenderWorker::set_filename(QByteArray filename)
+inline void VideoCodecWorker::set_filename(QByteArray filename)
 {
     filename_ = filename;
 }
 
-inline VideoRenderWorker::VideoPlayState VideoRenderWorker::playstate()
+inline VideoCodecWorker::VideoPlayState VideoCodecWorker::playstate()
 {
     return playstate_;
 }
 
-inline void VideoRenderWorker::set_playstate(VideoPlayState state)
+inline void VideoCodecWorker::set_playstate(VideoPlayState state)
 {
     playstate_ = state;
 }
 
-inline void VideoRenderWorker::set_decode_mode(bool is_soft)
+inline void VideoCodecWorker::set_decode_mode(bool is_soft)
 {
     decoder_->set_decode_mode(is_soft);
 }

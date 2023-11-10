@@ -8,7 +8,7 @@ add_subdirectory(widget)
 add_subdirectory(common)
 add_subdirectory(config)
 
-QT5_ADD_RESOURCES(RCC_FILES "")
+QT5_ADD_RESOURCES(RCC_FILES ffmpeg-player.qrc)
 
 if (WIN32)
 	# Preserve folder structure in visual studio

@@ -5,9 +5,9 @@
 #include <QHBoxLayout>
 #include <QRadioButton>
 
+#include "codec/video_codec_manager.h"
 #include "common/singleton.h"
 #include "config/config.h"
-#include "render/video_renderer.h"
 
 VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     : QWidget(parent)
@@ -19,8 +19,11 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     auto select_file_btn = new QPushButton(tr("select"), this);
     connect(select_file_btn, &QPushButton::clicked, this, &VideoDisplayWidget::SelectFileClicked);
 
-    player_ = new VideoPlayerWidget(this);
-    connect(player_, &VideoPlayerWidget::PlayState, this, &VideoDisplayWidget::PlayState);
+    // player_ = new VideoPlayerWidget(this);
+    // connect(player_, &VideoPlayerWidget::PlayState, this, &VideoDisplayWidget::PlayState);
+
+    player_ = new VideoSurfaceGL(this);
+    connect(player_, &VideoSurfaceGL::PlayState, this, &VideoDisplayWidget::PlayState);
 
     auto fill_bg_wiget = new QWidget(this);
 

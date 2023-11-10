@@ -1,21 +1,20 @@
-#include "video_renderer.h"
+#include "video_codec_manager.h"
 
-VideoRenderer::VideoRenderer(QObject* parent)
+VideoCodecManager::VideoCodecManager(QObject* parent)
     : QObject(parent)
 {
     thread_ = new QThread(this);
-    thread_->setObjectName("VideoRenderWorkerThread");
+    thread_->setObjectName("VideoCodecWorkerThread");
 
-    worker_ = std::make_unique<VideoRenderWorker>();
+    worker_ = std::make_unique<VideoCodecWorker>();
     worker_->moveToThread(thread_);
-    connect(worker_.get(), &VideoRenderWorker::UpdateImage, this, &VideoRenderer::UpdateImage,
-            Qt::DirectConnection);
-    connect(worker_.get(), &VideoRenderWorker::PlayState, this, &VideoRenderer::PlayState);
+    connect(worker_.get(), &VideoCodecWorker::UpdateImage, this, &VideoCodecManager::UpdateImage);
+    connect(worker_.get(), &VideoCodecWorker::PlayState, this, &VideoCodecManager::PlayState);
 
     thread_->start();
 }
 
-VideoRenderer::~VideoRenderer()
+VideoCodecManager::~VideoCodecManager()
 {
     Stop();
 
@@ -23,10 +22,10 @@ VideoRenderer::~VideoRenderer()
     thread_->wait();
 }
 
-void VideoRenderer::Open(const char* name)
+void VideoCodecManager::Open(const char* name)
 {
-    if (worker_->filename() == name && worker_->playstate() == VideoRenderWorker::kPause) {
-        worker_->set_playstate(VideoRenderWorker::kPlaying);
+    if (worker_->filename() == name && worker_->playstate() == VideoCodecWorker::kPause) {
+        worker_->set_playstate(VideoCodecWorker::kPlaying);
         return;
     }
 
@@ -34,26 +33,26 @@ void VideoRenderer::Open(const char* name)
     QMetaObject::invokeMethod(worker_.get(), "Run", Qt::QueuedConnection);
 }
 
-void VideoRenderer::Pause()
+void VideoCodecManager::Pause()
 {
-    worker_->set_playstate(VideoRenderWorker::kPause);
+    worker_->set_playstate(VideoCodecWorker::kPause);
 }
 
-void VideoRenderer::Stop()
+void VideoCodecManager::Stop()
 {
-    worker_->set_playstate(VideoRenderWorker::kStop);
+    worker_->set_playstate(VideoCodecWorker::kStop);
 }
 
 
-VideoRenderWorker::VideoRenderWorker(QObject* parent)
+VideoCodecWorker::VideoCodecWorker(QObject* parent)
     : QObject(parent)
 {
     decoder_ = new FFmpegDecoder(this);
 }
 
-VideoRenderWorker::~VideoRenderWorker() {}
+VideoCodecWorker::~VideoCodecWorker() {}
 
-void VideoRenderWorker::Run()
+void VideoCodecWorker::Run()
 {
     bool ret = decoder_->Open(filename_);
     if (!ret)
@@ -78,7 +77,7 @@ void VideoRenderWorker::Run()
                 QThread::msleep(ms);
             }
 
-            emit UpdateImage(frame_image);
+            emit UpdateImage(frame_image.copy());
         } else {
             if (decoder_->is_end()) {
                 playstate_ = kStop;

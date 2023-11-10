@@ -14,7 +14,8 @@ extern "C"
 #include <libswscale/swscale.h>
 }
 
-#include "widget/video_display/qpainter_render/video_player_widget.h"
+#include "render/opengl/video_surface_gl.h"
+#include "render/qpainter/video_player_widget.h"
 
 class VideoDisplayWidget : public QWidget
 {
@@ -34,7 +35,8 @@ private slots:
     void PlayState(bool playing);
 
 private:
-    VideoPlayerWidget* player_;
+    // VideoPlayerWidget* player_;
+    VideoSurfaceGL* player_;
 
     QLineEdit* file_edit_;
     QPushButton* play_btn_;
