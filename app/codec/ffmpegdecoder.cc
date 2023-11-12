@@ -16,11 +16,11 @@ FFmpegDecoder::FFmpegDecoder(QObject* parent)
     , packet_(nullptr)
     , frame_(nullptr)
     , hw_frame_(nullptr)
+    , hw_dev_ctx_(nullptr)
     , image_buf_(nullptr)
-    , soft_decode_(true)
-    , end_(true)
-    , pts_(0)
 {
+    InitDecodeParams();
+
     // Find Hardware Codec Devices.
     AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
     while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
@@ -128,35 +128,8 @@ bool FFmpegDecoder::Open(const char* filename)
 
 void FFmpegDecoder::Close()
 {
-    if (fmt_ctx_) {
-        avformat_close_input(&fmt_ctx_);
-    }
-
-    if (codec_ctx_) {
-        avcodec_free_context(&codec_ctx_);
-    }
-
-    if (sws_ctx_) {
-        sws_freeContext(sws_ctx_);
-        sws_ctx_ = nullptr;
-    }
-
-    if (packet_) {
-        av_packet_free(&packet_);
-    }
-
-    if (frame_) {
-        av_frame_free(&frame_);
-    }
-
-    if (hw_frame_) {
-        av_frame_free(&hw_frame_);
-    }
-
-    if (image_buf_) {
-        delete[] image_buf_;
-        image_buf_ = nullptr;
-    }
+    InitDecodeParams();
+    FreeResource();
 }
 
 int FFmpegDecoder::GetPacket(AVPacket* pkt)
@@ -277,6 +250,53 @@ bool FFmpegDecoder::AllocResource()
     return true;
 }
 
+void FFmpegDecoder::FreeResource()
+{
+    if (fmt_ctx_) {
+        avformat_close_input(&fmt_ctx_);
+    }
+
+    if (codec_ctx_) {
+        avcodec_free_context(&codec_ctx_);
+    }
+
+    if (sws_ctx_) {
+        sws_freeContext(sws_ctx_);
+        sws_ctx_ = nullptr;
+    }
+
+    if (packet_) {
+        av_packet_free(&packet_);
+    }
+
+    if (frame_) {
+        av_frame_free(&frame_);
+    }
+
+    if (hw_frame_) {
+        av_frame_free(&hw_frame_);
+    }
+
+    if (hw_dev_ctx_) {
+        av_buffer_unref(&hw_dev_ctx_);
+    }
+
+    if (image_buf_) {
+        delete[] image_buf_;
+        image_buf_ = nullptr;
+    }
+}
+
+void FFmpegDecoder::InitDecodeParams()
+{
+    video_duration_ = 0;
+    frame_rate_ = 0.0;
+    frame_num_ = 0;
+    video_resolution_ = QSize(0, 0);
+    end_ = true;
+    pts_ = 0;
+}
+
 void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
 {
     for (int i = 0;; i++) {
@@ -294,6 +314,10 @@ void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
                     SPDLOG_ERROR("Failed to open specified type of hw device or create ctx.");
                     return;
                 }
+
+                SPDLOG_INFO("Open the hardware device type as {0}",
+                            av_hwdevice_get_type_name(hw_config->device_type));
+
                 codec_ctx_->hw_device_ctx = av_buffer_ref(hw_dev_ctx_);
                 codec_ctx_->opaque = (void*)(&hw_config->pix_fmt);
                 codec_ctx_->get_format = get_hw_format;
@@ -305,13 +329,22 @@ void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
 
 bool FFmpegDecoder::GpuDataToCpu()
 {
-    int ret = av_hwframe_transfer_data(hw_frame_, frame_, 0);
+    AVPixelFormat* format = static_cast<AVPixelFormat*>(codec_ctx_->opaque);
+    if (frame_->format != *format) {
+        return false;
+    }
+
+    // int ret = av_hwframe_transfer_data(hw_frame_, frame_, 0);
+    int ret = av_hwframe_map(hw_frame_, frame_, 0);
     if (ret != 0) {
         FFmpegError(ret);
         return false;
     }
 
-    // copy frame meta data.
+    hw_frame_->width = frame_->width;
+    hw_frame_->height = frame_->height;
+
+    // Copy frame meta data.
     av_frame_copy_props(hw_frame_, frame_);
 
     return true;

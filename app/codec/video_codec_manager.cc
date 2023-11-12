@@ -8,7 +8,8 @@ VideoCodecManager::VideoCodecManager(QObject* parent)
 
     worker_ = std::make_unique<VideoCodecWorker>();
     worker_->moveToThread(thread_);
-    connect(worker_.get(), &VideoCodecWorker::SendFrame, this, &VideoCodecManager::SendFrame);
+    connect(worker_.get(), &VideoCodecWorker::SendFrame, this, &VideoCodecManager::SendFrame,
+            Qt::BlockingQueuedConnection);
     connect(worker_.get(), &VideoCodecWorker::PlayState, this, &VideoCodecManager::PlayState);
 
     thread_->start();

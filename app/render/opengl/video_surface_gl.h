@@ -14,6 +14,8 @@
 #include "opengl_renderer.h"
 #include "codec/video_codec_manager.h"
 
+using QOpenGLTexturePtr = std::shared_ptr<QOpenGLTexture>;
+
 class VideoSurfaceGL : public QOpenGLWidget, protected QOpenGLFunctions
 {
     Q_OBJECT
@@ -37,6 +39,11 @@ protected:
 
 private:
     void InitMenu();
+    void ReallocTex(QOpenGLTexturePtr tex, int type, int width, int height = 1, int depth = 1);
+    void ResetTexYuv420P(AVFrame* frame);
+    void ResetTexNV12(AVFrame* frame);
+    void FreeTexYuv420P();
+    void FreeTexNV12();
 
 private slots:
     void ProcessFrame(AVFrame* frame);
@@ -50,10 +57,12 @@ private:
     std::mutex mutex_;
 
     QSize frame_size_;
+    int format_;
     QOpenGLPixelTransferOptions pix_transfer_opts_;
     std::shared_ptr<QOpenGLTexture> y_tex_;
     std::shared_ptr<QOpenGLTexture> u_tex_;
     std::shared_ptr<QOpenGLTexture> v_tex_;
+    std::shared_ptr<QOpenGLTexture> uv_tex_;
 
     quint32 vao_;
 

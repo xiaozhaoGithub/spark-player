@@ -21,8 +21,6 @@ public:
     explicit FFmpegDecoder(QObject* parent = nullptr);
     ~FFmpegDecoder();
 
-    inline void set_decode_mode(bool is_soft);
-
     bool Open(const char* filename);
     void Close();
 
@@ -35,6 +33,8 @@ public:
 private:
     void FFmpegError(int error_code);
     bool AllocResource();
+    void FreeResource();
+    void InitDecodeParams();
     void InitHwDecode(const AVCodec* codec);
     bool GpuDataToCpu();
 
@@ -58,15 +58,9 @@ private:
     int64_t frame_num_;
     QSize video_resolution_;
     uint8_t* image_buf_;
-    bool soft_decode_;
     bool end_;
     int64_t pts_;
 };
-
-inline void FFmpegDecoder::set_decode_mode(bool is_soft)
-{
-    soft_decode_ = is_soft;
-}
 
 inline bool FFmpegDecoder::is_end()
 {

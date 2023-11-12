@@ -51,8 +51,6 @@ public:
     inline VideoPlayState playstate();
     inline void set_playstate(VideoPlayState state);
 
-    inline void set_decode_mode(bool is_soft);
-
 signals:
     void SendFrame(AVFrame* frame);
     void PlayState(bool state);
@@ -87,11 +85,6 @@ inline VideoCodecWorker::VideoPlayState VideoCodecWorker::playstate()
 inline void VideoCodecWorker::set_playstate(VideoPlayState state)
 {
     playstate_ = state;
-}
-
-inline void VideoCodecWorker::set_decode_mode(bool is_soft)
-{
-    decoder_->set_decode_mode(is_soft);
 }
 
 #endif

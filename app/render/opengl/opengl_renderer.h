@@ -23,7 +23,10 @@ public:
               float rotate = 0.0f, const QVector3D& color = QVector3D(1.0f, 1.0f, 1.0f));
 
     void Draw(std::shared_ptr<QOpenGLTexture> y, std::shared_ptr<QOpenGLTexture> u,
-              std::shared_ptr<QOpenGLTexture> v, const QVector2D& size);
+              std::shared_ptr<QOpenGLTexture> v, int type, const QVector2D& size);
+
+    void Draw(std::shared_ptr<QOpenGLTexture> y, std::shared_ptr<QOpenGLTexture> uv, int type,
+              const QVector2D& size);
 
 private:
     void InitRenderData();

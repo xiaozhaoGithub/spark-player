@@ -1,8 +1,12 @@
 #version 330 core
 
+uniform int format = -1;
+
 uniform sampler2D y_tex;
 uniform sampler2D u_tex;
 uniform sampler2D v_tex;
+
+uniform sampler2D uv_tex;
 
 in vec2 tex_coords;
 out vec4 frag_color;
@@ -17,8 +21,17 @@ const mat4 YUV_TO_RGB_MATRIX =
 void main() 
 {
     float y = texture2D(y_tex, tex_coords).r;
-    float u = texture2D(u_tex, tex_coords).r;
-    float v = texture2D(v_tex, tex_coords).r;
+
+    float u = 0.0;
+    float v = 0.0;
+
+    if(format == 0) {
+        u = texture2D(u_tex, tex_coords).r;
+        v = texture2D(v_tex, tex_coords).r;
+    } else if(format == 23) {
+        u = texture2D(uv_tex, tex_coords).r;
+        v = texture2D(uv_tex, tex_coords).g;
+    }
 
     frag_color = vec4(y, u, v, 1.0) * YUV_TO_RGB_MATRIX;
 }
