@@ -75,9 +75,11 @@ void VideoCodecWorker::Run()
 
         AVFrame* frame = decoder_->GetFrame();
         if (frame) {
-            int ms = decoder_->pts() - elapsed_timer_.elapsed();
-            if (ms > 0) {
-                QThread::msleep(ms);
+            if (decoder_->media()->type != kCapture) {
+                int ms = decoder_->pts() - elapsed_timer_.elapsed();
+                if (ms > 0) {
+                    QThread::msleep(ms);
+                }
             }
 
             emit SendFrame(frame);

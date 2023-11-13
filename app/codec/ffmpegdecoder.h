@@ -25,6 +25,7 @@ public:
     ~FFmpegDecoder();
 
     void set_media(const MediaInfo& media);
+    MediaInfo* media();
 
     bool Open();
     void Close();
@@ -39,7 +40,7 @@ private:
     void FFmpegError(int error_code);
     bool AllocResource();
     void FreeResource();
-    bool InitInputFmtParams(std::string& url, AVInputFormat* fmt);
+    bool InitInputFmtParams(std::string& url, AVInputFormat** fmt);
     void InitDecodeParams();
     void InitHwDecode(const AVCodec* codec);
     bool GpuDataToCpu();

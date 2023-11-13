@@ -42,8 +42,9 @@ void VideoSurfaceGL::ProcessFrame(AVFrame* frame)
 
     format_ = frame->format;
     switch (format_) {
-    case AV_PIX_FMT_YUV420P: {
-        ResetTexYuv420P(frame);
+    case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUVJ422P: {
+        ResetTexYuv(frame, format_);
         break;
     }
     case AV_PIX_FMT_NV12: {
@@ -104,7 +105,8 @@ void VideoSurfaceGL::resizeGL(int w, int h)
 void VideoSurfaceGL::paintGL()
 {
     switch (format_) {
-    case AV_PIX_FMT_YUV420P: {
+    case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUVJ422P: {
         renderer_->Draw(y_tex_, u_tex_, v_tex_, format_, QVector2D(width(), height()));
         break;
     }
@@ -139,10 +141,20 @@ void VideoSurfaceGL::ReallocTex(QOpenGLTexturePtr tex, int type, int width, int 
     tex->allocateStorage();
 }
 
-void VideoSurfaceGL::ResetTexYuv420P(AVFrame* frame)
+void VideoSurfaceGL::ResetTexYuv(AVFrame* frame, int type)
 {
     if (frame->width != frame_size_.width() || frame->height != frame_size_.height()) {
-        FreeTexYuv420P();
+        FreeTexYuv();
+    }
+
+    int tex_width = frame->width;
+    int tex_height = frame->height;
+    if (type == AV_PIX_FMT_YUVJ422P) {
+        tex_width = tex_width / 2;
+        tex_height = tex_height;
+    } else if (type == AV_PIX_FMT_YUV420P) {
+        tex_width = tex_width / 2;
+        tex_height = tex_height / 2;
     }
 
     if (!y_tex_) {
@@ -151,11 +163,11 @@ void VideoSurfaceGL::ResetTexYuv420P(AVFrame* frame)
     }
     if (!u_tex_) {
         u_tex_ = std::make_shared<QOpenGLTexture>(QOpenGLTexture::Target2D);
-        ReallocTex(u_tex_, QOpenGLTexture::R8_UNorm, frame->width / 2, frame->height / 2);
+        ReallocTex(u_tex_, QOpenGLTexture::R8_UNorm, tex_width, tex_height);
     }
     if (!v_tex_) {
         v_tex_ = std::make_shared<QOpenGLTexture>(QOpenGLTexture::Target2D);
-        ReallocTex(v_tex_, QOpenGLTexture::R8_UNorm, frame->width / 2, frame->height / 2);
+        ReallocTex(v_tex_, QOpenGLTexture::R8_UNorm, tex_width, tex_height);
     }
 
     frame_size_.setWidth(frame->width);
@@ -201,7 +213,7 @@ void VideoSurfaceGL::ResetTexNV12(AVFrame* frame)
     uv_tex_->setData(QOpenGLTexture::RG, QOpenGLTexture::UInt8, frame->data[1], &pix_transfer_opts_);
 }
 
-void VideoSurfaceGL::FreeTexYuv420P()
+void VideoSurfaceGL::FreeTexYuv()
 {
     y_tex_.reset();
     u_tex_.reset();

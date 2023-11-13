@@ -43,9 +43,9 @@ protected:
 private:
     void InitMenu();
     void ReallocTex(QOpenGLTexturePtr tex, int type, int width, int height = 1, int depth = 1);
-    void ResetTexYuv420P(AVFrame* frame);
+    void ResetTexYuv(AVFrame* frame, int type);
     void ResetTexNV12(AVFrame* frame);
-    void FreeTexYuv420P();
+    void FreeTexYuv();
     void FreeTexNV12();
 
 private slots:

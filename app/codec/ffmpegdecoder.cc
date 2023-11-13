@@ -41,11 +41,16 @@ void FFmpegDecoder::set_media(const MediaInfo& media)
     media_.reset(new MediaInfo(media));
 }
 
+MediaInfo* FFmpegDecoder::media()
+{
+    return media_.get();
+}
+
 bool FFmpegDecoder::Open()
 {
     std::string url;
     AVInputFormat* input_fmt = nullptr;
-    if (!InitInputFmtParams(url, input_fmt))
+    if (!InitInputFmtParams(url, &input_fmt))
         return false;
 
     AVDictionary* dict = nullptr;
@@ -63,9 +68,7 @@ bool FFmpegDecoder::Open()
         av_dict_free(&dict);
     }
 
-    SPDLOG_INFO("--------------- File Information ----------------.");
     av_dump_format(fmt_ctx_, 0, url.data(), 0);
-    SPDLOG_INFO("-------------------------------------------------");
 
     error_code = avformat_find_stream_info(fmt_ctx_, nullptr);
     if (error_code < 0) {
@@ -300,19 +303,19 @@ void FFmpegDecoder::FreeResource()
     }
 }
 
-bool FFmpegDecoder::InitInputFmtParams(std::string& url, AVInputFormat* fmt)
+bool FFmpegDecoder::InitInputFmtParams(std::string& url, AVInputFormat** fmt)
 {
     switch (media_->type) {
     case kCapture: {
 #if defined(Q_OS_WIN)
         // You can't turn on the webcam if you don't have it on Windows
-        fmt = av_find_input_format("dshow");
+        *fmt = av_find_input_format("dshow");
 #elif defined(Q_OS_LINUX)
-        fmt = av_find_input_format("video4linux2");
+        *fmt = av_find_input_format("video4linux2");
 #elif defined(Q_OS_MAC)
-        fmt = av_find_input_format("avfoundation");
+        *fmt = av_find_input_format("avfoundation");
 #endif
-        if (!fmt) {
+        if (!*fmt) {
             SPDLOG_ERROR("Failed to get this input device.");
             return false;
         }
