@@ -81,8 +81,6 @@ VideoDisplayWidget::~VideoDisplayWidget() {}
 
 void VideoDisplayWidget::PlayClicked()
 {
-    play_stop_widget_->setCurrentWidget(pause_btn_);
-
     player_->set_media(media_);
     player_->Open();
 }
