@@ -8,6 +8,7 @@
 #include <QTime>
 
 #include "codec/ffmpegdecoder.h"
+#include "common/media_info.h"
 
 class VideoCodecWorker;
 class VideoCodecManager : public QObject
@@ -17,9 +18,11 @@ public:
     explicit VideoCodecManager(QObject* parent = nullptr);
     ~VideoCodecManager();
 
-    void Open(const char* name);
+    void Open();
     void Pause();
     void Stop();
+
+    void set_media(const MediaInfo& media);
 
 signals:
     void UpdateImage(const QImage& image);
@@ -45,8 +48,7 @@ public:
         kStop
     };
 
-    inline QByteArray filename();
-    inline void set_filename(QByteArray filename);
+    inline void set_media(const MediaInfo& media);
 
     inline VideoPlayState playstate();
     inline void set_playstate(VideoPlayState state);
@@ -67,16 +69,6 @@ private:
     bool soft_decode_;
 };
 
-inline QByteArray VideoCodecWorker::filename()
-{
-    return filename_;
-}
-
-inline void VideoCodecWorker::set_filename(QByteArray filename)
-{
-    filename_ = filename;
-}
-
 inline VideoCodecWorker::VideoPlayState VideoCodecWorker::playstate()
 {
     return playstate_;
@@ -85,6 +77,11 @@ inline VideoCodecWorker::VideoPlayState VideoCodecWorker::playstate()
 inline void VideoCodecWorker::set_playstate(VideoPlayState state)
 {
     playstate_ = state;
+}
+
+inline void VideoCodecWorker::set_media(const MediaInfo& media)
+{
+    decoder_->set_media(media);
 }
 
 #endif

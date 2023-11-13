@@ -8,11 +8,14 @@
 
 extern "C"
 {
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/imgutils.h>
-#include <libswscale/swscale.h>
+#include "libavcodec/avcodec.h"
+#include "libavdevice/avdevice.h"
+#include "libavformat/avformat.h"
+#include "libavutil/imgutils.h"
+#include "libswscale/swscale.h"
 }
+
+#include "common/media_info.h"
 
 class FFmpegDecoder : public QObject
 {
@@ -21,7 +24,9 @@ public:
     explicit FFmpegDecoder(QObject* parent = nullptr);
     ~FFmpegDecoder();
 
-    bool Open(const char* filename);
+    void set_media(const MediaInfo& media);
+
+    bool Open();
     void Close();
 
     int GetPacket(AVPacket* pkt);
@@ -34,6 +39,7 @@ private:
     void FFmpegError(int error_code);
     bool AllocResource();
     void FreeResource();
+    bool InitInputFmtParams(std::string& url, AVInputFormat* fmt);
     void InitDecodeParams();
     void InitHwDecode(const AVCodec* codec);
     bool GpuDataToCpu();
@@ -42,6 +48,8 @@ private:
     static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* fmt);
 
 private:
+    std::unique_ptr<MediaInfo> media_;
+
     AVFormatContext* fmt_ctx_;
     AVCodecContext* codec_ctx_;
     SwsContext* sws_ctx_;

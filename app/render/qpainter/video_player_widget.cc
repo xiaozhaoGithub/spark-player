@@ -15,7 +15,7 @@ VideoPlayerWidget::~VideoPlayerWidget() {}
 
 void VideoPlayerWidget::Open(const char* name)
 {
-    video_renderer_->Open(name);
+    video_renderer_->Open();
 }
 
 void VideoPlayerWidget::Pause()

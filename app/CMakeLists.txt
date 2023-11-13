@@ -5,6 +5,7 @@ set(Sources
 add_subdirectory(codec)
 add_subdirectory(render)
 add_subdirectory(widget)
+add_subdirectory(dialog)
 add_subdirectory(common)
 add_subdirectory(config)
 

@@ -8,6 +8,7 @@
 #include "codec/video_codec_manager.h"
 #include "common/singleton.h"
 #include "config/config.h"
+#include "dialog/media/open_media_dialog.h"
 
 VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     : QWidget(parent)
@@ -15,9 +16,10 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     setMinimumSize(1024, 768);
 
     file_edit_ = new QLineEdit(this);
+    file_edit_->setEnabled(false);
     file_edit_->setFixedWidth(360);
     auto select_file_btn = new QPushButton(tr("select"), this);
-    connect(select_file_btn, &QPushButton::clicked, this, &VideoDisplayWidget::SelectFileClicked);
+    connect(select_file_btn, &QPushButton::clicked, this, &VideoDisplayWidget::SelectMediaClicked);
 
     // player_ = new VideoPlayerWidget(this);
     // connect(player_, &VideoPlayerWidget::PlayState, this, &VideoDisplayWidget::PlayState);
@@ -81,8 +83,8 @@ void VideoDisplayWidget::PlayClicked()
 {
     play_stop_widget_->setCurrentWidget(pause_btn_);
 
-    auto filename = file_edit_->text().toUtf8();
-    player_->Open(filename);
+    player_->set_media(media_);
+    player_->Open();
 }
 
 void VideoDisplayWidget::PauseClicked()
@@ -101,18 +103,22 @@ void VideoDisplayWidget::DecodeBtnClicked(int id)
     Singleton<Config>::Instance()->SetAppConfigData("video_param", "enable_hw_decode", (bool)id);
 }
 
-void VideoDisplayWidget::SelectFileClicked()
-{
-    QFileDialog dlg;
-    int ret = dlg.exec();
-    if (ret == QDialog::Accepted) {
-        auto files = dlg.selectedFiles();
-        file_edit_->setText(files.at(0));
-        file_edit_->setToolTip(files.at(0));
-    }
-}
-
 void VideoDisplayWidget::PlayState(bool playing)
 {
     play_stop_widget_->setCurrentWidget(playing ? pause_btn_ : play_btn_);
+}
+
+void VideoDisplayWidget::SelectMediaClicked()
+{
+    auto dlg = new OpenMediaDialog(this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+
+    connect(dlg, &OpenMediaDialog::finished, this, [=](int code) {
+        if (code == QDialog::Accepted) {
+            media_ = dlg->media();
+            file_edit_->setText(QString::fromStdString(media_.src));
+        }
+    });
+
+    dlg->open();
 }

@@ -26,7 +26,7 @@ public:
     ~VideoDisplayWidget();
 
 private slots:
-    void SelectFileClicked();
+    void SelectMediaClicked();
     void PlayClicked();
     void PauseClicked();
     void StopClicked();
@@ -42,6 +42,8 @@ private:
     QPushButton* play_btn_;
     QPushButton* pause_btn_;
     QStackedWidget* play_stop_widget_;
+
+    MediaInfo media_;
 };
 
 #endif

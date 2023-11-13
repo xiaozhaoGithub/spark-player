@@ -15,9 +15,9 @@ VideoSurfaceGL::VideoSurfaceGL(QWidget* parent)
 
 VideoSurfaceGL::~VideoSurfaceGL() {}
 
-void VideoSurfaceGL::Open(const char* name)
+void VideoSurfaceGL::Open()
 {
-    video_renderer_->Open(name);
+    video_renderer_->Open();
 }
 
 void VideoSurfaceGL::Pause()
@@ -28,6 +28,11 @@ void VideoSurfaceGL::Pause()
 void VideoSurfaceGL::Stop()
 {
     video_renderer_->Stop();
+}
+
+void VideoSurfaceGL::set_media(const MediaInfo& media)
+{
+    video_renderer_->set_media(media);
 }
 
 void VideoSurfaceGL::ProcessFrame(AVFrame* frame)

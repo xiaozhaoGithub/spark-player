@@ -13,6 +13,7 @@
 
 #include "opengl_renderer.h"
 #include "codec/video_codec_manager.h"
+#include "common/media_info.h"
 
 using QOpenGLTexturePtr = std::shared_ptr<QOpenGLTexture>;
 
@@ -23,9 +24,11 @@ public:
     explicit VideoSurfaceGL(QWidget* parent = nullptr);
     ~VideoSurfaceGL();
 
-    void Open(const char* name);
+    void Open();
     void Pause();
     void Stop();
+
+    void set_media(const MediaInfo& media);
 
 signals:
     void PlayState(bool playing);

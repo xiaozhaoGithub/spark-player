@@ -21,11 +21,14 @@ FFmpegDecoder::FFmpegDecoder(QObject* parent)
 {
     InitDecodeParams();
 
-    // Find Hardware Codec Devices.
+    // Find hardware codec devices.
     AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
     while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
         hw_devices.push_back(type);
     }
+
+    // Register input device.
+    avdevice_register_all();
 }
 
 FFmpegDecoder::~FFmpegDecoder()
@@ -33,14 +36,24 @@ FFmpegDecoder::~FFmpegDecoder()
     Close();
 }
 
-bool FFmpegDecoder::Open(const char* filename)
+void FFmpegDecoder::set_media(const MediaInfo& media)
 {
+    media_.reset(new MediaInfo(media));
+}
+
+bool FFmpegDecoder::Open()
+{
+    std::string url;
+    AVInputFormat* input_fmt = nullptr;
+    if (!InitInputFmtParams(url, input_fmt))
+        return false;
+
     AVDictionary* dict = nullptr;
     av_dict_set(&dict, "rtsp_transport", "tcp", 0);
     av_dict_set(&dict, "max_delay", "3", 0);
     av_dict_set(&dict, "timeout", "1000000", 0);
 
-    int error_code = avformat_open_input(&fmt_ctx_, filename, nullptr, &dict);
+    int error_code = avformat_open_input(&fmt_ctx_, url.data(), input_fmt, &dict);
     if (error_code != 0) {
         SPDLOG_ERROR("Failed to open input stream.");
         return false;
@@ -51,7 +64,7 @@ bool FFmpegDecoder::Open(const char* filename)
     }
 
     SPDLOG_INFO("--------------- File Information ----------------.");
-    av_dump_format(fmt_ctx_, 0, filename, 0);
+    av_dump_format(fmt_ctx_, 0, url.data(), 0);
     SPDLOG_INFO("-------------------------------------------------");
 
     error_code = avformat_find_stream_info(fmt_ctx_, nullptr);
@@ -285,6 +298,39 @@ void FFmpegDecoder::FreeResource()
         delete[] image_buf_;
         image_buf_ = nullptr;
     }
+}
+
+bool FFmpegDecoder::InitInputFmtParams(std::string& url, AVInputFormat* fmt)
+{
+    switch (media_->type) {
+    case kCapture: {
+#if defined(Q_OS_WIN)
+        // You can't turn on the webcam if you don't have it on Windows
+        fmt = av_find_input_format("dshow");
+#elif defined(Q_OS_LINUX)
+        fmt = av_find_input_format("video4linux2");
+#elif defined(Q_OS_MAC)
+        fmt = av_find_input_format("avfoundation");
+#endif
+        if (!fmt) {
+            SPDLOG_ERROR("Failed to get this input device.");
+            return false;
+        }
+
+        url = "video=" + media_->src;
+        break;
+    }
+    case kFile:
+    case kNetwork: {
+        url = media_->src;
+        break;
+    }
+    default:
+        SPDLOG_ERROR("Failed to open this media type {0}.", media_->type);
+        return false;
+    }
+
+    return true;
 }
 
 void FFmpegDecoder::InitDecodeParams()

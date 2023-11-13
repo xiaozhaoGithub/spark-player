@@ -23,14 +23,13 @@ VideoCodecManager::~VideoCodecManager()
     thread_->wait();
 }
 
-void VideoCodecManager::Open(const char* name)
+void VideoCodecManager::Open()
 {
-    if (worker_->filename() == name && worker_->playstate() == VideoCodecWorker::kPause) {
+    if (worker_->playstate() == VideoCodecWorker::kPause) {
         worker_->set_playstate(VideoCodecWorker::kPlaying);
         return;
     }
 
-    worker_->set_filename(name);
     QMetaObject::invokeMethod(worker_.get(), "Run", Qt::QueuedConnection);
 }
 
@@ -44,6 +43,11 @@ void VideoCodecManager::Stop()
     worker_->set_playstate(VideoCodecWorker::kStop);
 }
 
+void VideoCodecManager::set_media(const MediaInfo& media)
+{
+    worker_->set_media(media);
+}
+
 
 VideoCodecWorker::VideoCodecWorker(QObject* parent)
     : QObject(parent)
@@ -55,7 +59,7 @@ VideoCodecWorker::~VideoCodecWorker() {}
 
 void VideoCodecWorker::Run()
 {
-    bool ret = decoder_->Open(filename_);
+    bool ret = decoder_->Open();
     if (!ret)
         return;
 
