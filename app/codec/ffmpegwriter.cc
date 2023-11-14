@@ -9,6 +9,7 @@ FFmpegWriter::FFmpegWriter()
     , new_stream_(nullptr)
     , packet_(nullptr)
     , header_written_(false)
+    , frame_index_(0)
 {}
 
 FFmpegWriter::~FFmpegWriter()
@@ -16,8 +17,17 @@ FFmpegWriter::~FFmpegWriter()
     Close();
 }
 
-bool FFmpegWriter::Open(const char* filename, AVStream* stream)
+void FFmpegWriter::set_media(const MediaInfo& media)
 {
+    media_.reset(new MediaInfo(media));
+}
+
+bool FFmpegWriter::Open(AVStream* stream)
+{
+    if (!media_)
+        return false;
+
+    const char* filename = media_->src.data();
     SPDLOG_INFO("Record filename: {0}", filename);
 
     codec_ = avcodec_find_encoder(stream->codecpar->codec_id);
@@ -27,7 +37,23 @@ bool FFmpegWriter::Open(const char* filename, AVStream* stream)
     }
     SPDLOG_INFO("Find the encoder name: {0}", codec_->name);
 
-    int error_code = avformat_alloc_output_context2(&fmt_ctx_, nullptr, "h264", filename);
+    int error_code = 0;
+
+    switch (media_->type) {
+    case kCapture:
+        error_code = avformat_alloc_output_context2(&fmt_ctx_, nullptr, codec_->name, filename);
+        break;
+    case kFile:
+        error_code = avformat_alloc_output_context2(&fmt_ctx_, nullptr, "h264", filename);
+        break;
+    case kNetwork:
+        error_code = avformat_alloc_output_context2(&fmt_ctx_, nullptr, nullptr, filename);
+        break;
+    default:
+        SPDLOG_ERROR("Failed to open this media type {0}.", media_->type);
+        return false;
+    }
+
     if (error_code < 0) {
         FFmpegError(error_code);
         return false;
@@ -48,12 +74,12 @@ bool FFmpegWriter::Open(const char* filename, AVStream* stream)
     // Set some necessary parameters before opening the encoder.
     codec_ctx_->width = stream->codecpar->width;
     codec_ctx_->height = stream->codecpar->height;
-    codec_ctx_->time_base = {1, 10};
-    codec_ctx_->framerate = {10, 1};
+    codec_ctx_->time_base = {1, 30};
+    codec_ctx_->framerate = {30, 1};
     codec_ctx_->bit_rate = 4000000;
-    codec_ctx_->pix_fmt = AV_PIX_FMT_YUV420P;
+    codec_ctx_->pix_fmt = (AVPixelFormat)stream->codecpar->format;
     codec_ctx_->gop_size = 10;
-    codec_ctx_->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+    // codec_ctx_->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
     error_code = avcodec_open2(codec_ctx_, nullptr, nullptr);
     if (error_code < 0) {
@@ -61,7 +87,7 @@ bool FFmpegWriter::Open(const char* filename, AVStream* stream)
         return false;
     }
 
-    new_stream_ = avformat_new_stream(fmt_ctx_, codec_);
+    new_stream_ = avformat_new_stream(fmt_ctx_, nullptr);
     if (!new_stream_) {
         SPDLOG_ERROR("Failed to create new stream.");
         return false;
@@ -91,6 +117,10 @@ bool FFmpegWriter::Write(AVFrame* frame)
     if (!packet_)
         return false;
 
+    if (frame) {
+        frame->pts = frame_index_++;
+    }
+
     int error_code = avcodec_send_frame(codec_ctx_, frame);
     if (error_code < 0) {
         FFmpegError(error_code);
@@ -100,14 +130,12 @@ bool FFmpegWriter::Write(AVFrame* frame)
     while (true) {
         error_code = avcodec_receive_packet(codec_ctx_, packet_);
         if (error_code < 0) {
-            FFmpegError(error_code);
+            // FFmpegError(error_code);
             break;
         }
 
-        error_code = av_write_frame(fmt_ctx_, packet_);
-        if (error_code < 0) {
-            FFmpegError(error_code);
-        }
+        av_packet_rescale_ts(packet_, codec_ctx_->time_base, new_stream_->time_base);
+        av_write_frame(fmt_ctx_, packet_);
         av_packet_unref(packet_);
     }
 
@@ -128,8 +156,10 @@ void FFmpegWriter::Close()
         }
 
         avio_close(fmt_ctx_->pb);
-    }
 
+        SPDLOG_INFO("Stop record.");
+    }
+    frame_index_ = 0;
     FreeResource();
 }
 

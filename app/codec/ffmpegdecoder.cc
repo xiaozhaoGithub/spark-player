@@ -48,6 +48,9 @@ MediaInfo* FFmpegDecoder::media()
 
 bool FFmpegDecoder::Open()
 {
+    if (!media_)
+        return false;
+
     std::string url;
     AVInputFormat* input_fmt = nullptr;
     if (!InitInputFmtParams(url, &input_fmt))

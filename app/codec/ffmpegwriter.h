@@ -12,13 +12,17 @@ extern "C"
 #include "libswscale/swscale.h"
 }
 
+#include "common/media_info.h"
+
 class FFmpegWriter
 {
 public:
     explicit FFmpegWriter();
     ~FFmpegWriter();
 
-    bool Open(const char* filename, AVStream* stream);
+    void set_media(const MediaInfo& media);
+
+    bool Open(AVStream* stream);
     bool Write(AVFrame* frame);
     void Close();
 
@@ -28,6 +32,8 @@ private:
     void FreeResource();
 
 private:
+    std::unique_ptr<MediaInfo> media_;
+
     AVFormatContext* fmt_ctx_;
     AVCodec* codec_;
     AVCodecContext* codec_ctx_;
@@ -38,6 +44,7 @@ private:
     bool header_written_;
 
     std::mutex mutex_;
+    int64_t frame_index_;
 };
 
 #endif

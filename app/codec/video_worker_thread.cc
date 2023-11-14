@@ -40,9 +40,12 @@ void VideoWorkerThread::StartRecord()
     QString filename =
         QString("video_record_%1.mp4").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss"));
 
-    bool ret = writer_->Open(filename.toUtf8().data(), decoder_->stream());
+    MediaInfo media;
+    media.type = decoder_->media()->type;
+    media.src = filename.toStdString();
+    writer_->set_media(media);
 
-    if (ret) {
+    if (writer_->Open(decoder_->stream())) {
         emit RecordState(true);
     }
 }
