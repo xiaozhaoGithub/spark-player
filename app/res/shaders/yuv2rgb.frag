@@ -26,6 +26,7 @@ void main()
     float v = 0.0;
 
     if(format == 0 ||
+	   format == 12 ||
        format == 13 ) {
         u = texture2D(u_tex, tex_coords).r;
         v = texture2D(v_tex, tex_coords).r;

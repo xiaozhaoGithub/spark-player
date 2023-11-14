@@ -4,9 +4,9 @@ VideoPlayerWidget::VideoPlayerWidget(QWidget* parent)
     : QWidget(parent)
     , divide_num_(1)
 {
-    video_renderer_ = new VideoCodecManager(this);
-    connect(video_renderer_, &VideoCodecManager::UpdateImage, this, &VideoPlayerWidget::UpdateImage);
-    connect(video_renderer_, &VideoCodecManager::PlayState, this, &VideoPlayerWidget::PlayState);
+    video_thread_ = new VideoWorkerThread(this);
+    connect(video_thread_, &VideoWorkerThread::UpdateImage, this, &VideoPlayerWidget::UpdateImage);
+    connect(video_thread_, &VideoWorkerThread::PlayState, this, &VideoPlayerWidget::PlayState);
 
     InitMenu();
 }
@@ -15,17 +15,17 @@ VideoPlayerWidget::~VideoPlayerWidget() {}
 
 void VideoPlayerWidget::Open(const char* name)
 {
-    video_renderer_->Open();
+    video_thread_->Open();
 }
 
 void VideoPlayerWidget::Pause()
 {
-    video_renderer_->Pause();
+    video_thread_->Pause();
 }
 
 void VideoPlayerWidget::Stop()
 {
-    video_renderer_->Stop();
+    video_thread_->Stop();
 }
 
 void VideoPlayerWidget::set_pixmap(const QPixmap& pixmap)

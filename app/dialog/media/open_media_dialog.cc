@@ -14,6 +14,7 @@ OpenMediaDialog::OpenMediaDialog(QWidget* parent)
 
     file_edit_ = new QLineEdit(this);
     file_edit_->setFixedWidth(360);
+    file_edit_->setText("E:/WorkSpace/test/golden-dark.mp4");
     auto select_file_btn = new QPushButton(tr("select"), this);
     connect(select_file_btn, &QPushButton::clicked, this, &OpenMediaDialog::SelectFileClicked);
 

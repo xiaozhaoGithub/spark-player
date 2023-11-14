@@ -6,9 +6,10 @@
 VideoSurfaceGL::VideoSurfaceGL(QWidget* parent)
     : QOpenGLWidget(parent)
 {
-    video_renderer_ = new VideoCodecManager(this);
-    connect(video_renderer_, &VideoCodecManager::SendFrame, this, &VideoSurfaceGL::ProcessFrame);
-    connect(video_renderer_, &VideoCodecManager::PlayState, this, &VideoSurfaceGL::PlayState);
+    video_thread_ = new VideoWorkerThread(this);
+    connect(video_thread_, &VideoWorkerThread::SendFrame, this, &VideoSurfaceGL::ProcessFrame);
+    connect(video_thread_, &VideoWorkerThread::PlayState, this, &VideoSurfaceGL::PlayState);
+    connect(video_thread_, &VideoWorkerThread::RecordState, this, &VideoSurfaceGL::RecordState);
 
     InitMenu();
 }
@@ -17,22 +18,32 @@ VideoSurfaceGL::~VideoSurfaceGL() {}
 
 void VideoSurfaceGL::Open()
 {
-    video_renderer_->Open();
+    video_thread_->Open();
 }
 
 void VideoSurfaceGL::Pause()
 {
-    video_renderer_->Pause();
+    video_thread_->Pause();
 }
 
 void VideoSurfaceGL::Stop()
 {
-    video_renderer_->Stop();
+    video_thread_->Stop();
+}
+
+void VideoSurfaceGL::StartRecord()
+{
+    video_thread_->StartRecord();
+}
+
+void VideoSurfaceGL::StopRecord()
+{
+    video_thread_->StopRecord();
 }
 
 void VideoSurfaceGL::set_media(const MediaInfo& media)
 {
-    video_renderer_->set_media(media);
+    video_thread_->set_media(media);
 }
 
 void VideoSurfaceGL::ProcessFrame(AVFrame* frame)
@@ -40,11 +51,21 @@ void VideoSurfaceGL::ProcessFrame(AVFrame* frame)
     if (!frame || frame->width == 0 || frame->height == 0)
         return;
 
+    int tex_width = frame->width;
+    int tex_height = frame->height;
+
     format_ = frame->format;
     switch (format_) {
     case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUVJ420P: {
+        tex_width = tex_width / 2;
+        tex_height = tex_height / 2;
+        ResetTexYuv(frame, format_, tex_width, tex_height);
+    }
     case AV_PIX_FMT_YUVJ422P: {
-        ResetTexYuv(frame, format_);
+        tex_width = tex_width / 2;
+        tex_height = tex_height;
+        ResetTexYuv(frame, format_, tex_width, tex_height);
         break;
     }
     case AV_PIX_FMT_NV12: {
@@ -106,6 +127,7 @@ void VideoSurfaceGL::paintGL()
 {
     switch (format_) {
     case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUVJ420P:
     case AV_PIX_FMT_YUVJ422P: {
         renderer_->Draw(y_tex_, u_tex_, v_tex_, format_, QVector2D(width(), height()));
         break;
@@ -141,20 +163,10 @@ void VideoSurfaceGL::ReallocTex(QOpenGLTexturePtr tex, int type, int width, int 
     tex->allocateStorage();
 }
 
-void VideoSurfaceGL::ResetTexYuv(AVFrame* frame, int type)
+void VideoSurfaceGL::ResetTexYuv(AVFrame* frame, int type, int width, int height)
 {
     if (frame->width != frame_size_.width() || frame->height != frame_size_.height()) {
         FreeTexYuv();
-    }
-
-    int tex_width = frame->width;
-    int tex_height = frame->height;
-    if (type == AV_PIX_FMT_YUVJ422P) {
-        tex_width = tex_width / 2;
-        tex_height = tex_height;
-    } else if (type == AV_PIX_FMT_YUV420P) {
-        tex_width = tex_width / 2;
-        tex_height = tex_height / 2;
     }
 
     if (!y_tex_) {
@@ -163,11 +175,11 @@ void VideoSurfaceGL::ResetTexYuv(AVFrame* frame, int type)
     }
     if (!u_tex_) {
         u_tex_ = std::make_shared<QOpenGLTexture>(QOpenGLTexture::Target2D);
-        ReallocTex(u_tex_, QOpenGLTexture::R8_UNorm, tex_width, tex_height);
+        ReallocTex(u_tex_, QOpenGLTexture::R8_UNorm, width, height);
     }
     if (!v_tex_) {
         v_tex_ = std::make_shared<QOpenGLTexture>(QOpenGLTexture::Target2D);
-        ReallocTex(v_tex_, QOpenGLTexture::R8_UNorm, tex_width, tex_height);
+        ReallocTex(v_tex_, QOpenGLTexture::R8_UNorm, width, height);
     }
 
     frame_size_.setWidth(frame->width);

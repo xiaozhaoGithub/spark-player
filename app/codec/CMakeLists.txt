@@ -2,7 +2,9 @@ set(Sources
 	${Sources}
 	codec/ffmpegdecoder.cc
 	codec/ffmpegdecoder.h
-	codec/video_codec_manager.cc
-	codec/video_codec_manager.h
+	codec/video_worker_thread.cc
+	codec/video_worker_thread.h
+	codec/ffmpegwriter.cc
+	codec/ffmpegwriter.h
 	PARENT_SCOPE
 )

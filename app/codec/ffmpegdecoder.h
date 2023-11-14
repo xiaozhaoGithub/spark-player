@@ -35,6 +35,7 @@ public:
 
     inline bool is_end();
     inline int64_t pts();
+    inline AVStream* stream();
 
 private:
     void FFmpegError(int error_code);
@@ -79,6 +80,11 @@ inline bool FFmpegDecoder::is_end()
 inline int64_t FFmpegDecoder::pts()
 {
     return pts_;
+}
+
+inline AVStream* FFmpegDecoder::stream()
+{
+    return stream_;
 }
 
 #endif

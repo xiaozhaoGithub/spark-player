@@ -12,7 +12,7 @@
 #include <mutex>
 
 #include "opengl_renderer.h"
-#include "codec/video_codec_manager.h"
+#include "codec/video_worker_thread.h"
 #include "common/media_info.h"
 
 using QOpenGLTexturePtr = std::shared_ptr<QOpenGLTexture>;
@@ -27,11 +27,14 @@ public:
     void Open();
     void Pause();
     void Stop();
+    void StartRecord();
+    void StopRecord();
 
     void set_media(const MediaInfo& media);
 
 signals:
     void PlayState(bool playing);
+    void RecordState(bool recording);
 
 protected:
     void initializeGL() override;
@@ -43,7 +46,7 @@ protected:
 private:
     void InitMenu();
     void ReallocTex(QOpenGLTexturePtr tex, int type, int width, int height = 1, int depth = 1);
-    void ResetTexYuv(AVFrame* frame, int type);
+    void ResetTexYuv(AVFrame* frame, int type, int width, int height);
     void ResetTexNV12(AVFrame* frame);
     void FreeTexYuv();
     void FreeTexNV12();
@@ -54,7 +57,7 @@ private slots:
     void ExitFullScreenClicked();
 
 private:
-    VideoCodecManager* video_renderer_;
+    VideoWorkerThread* video_thread_;
     std::shared_ptr<OpenGLRenderer> renderer_;
 
     std::mutex mutex_;
