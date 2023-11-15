@@ -74,8 +74,8 @@ bool FFmpegWriter::Open(AVStream* stream)
     // Set some necessary parameters before opening the encoder.
     codec_ctx_->width = stream->codecpar->width;
     codec_ctx_->height = stream->codecpar->height;
-    codec_ctx_->time_base = {1, 30};
-    codec_ctx_->framerate = {30, 1};
+    codec_ctx_->time_base = {1, 10};
+    codec_ctx_->framerate = {10, 1};
     codec_ctx_->bit_rate = 4000000;
     codec_ctx_->pix_fmt = (AVPixelFormat)stream->codecpar->format;
     codec_ctx_->gop_size = 10;
@@ -121,16 +121,12 @@ bool FFmpegWriter::Write(AVFrame* frame)
         frame->pts = frame_index_++;
     }
 
-    int error_code = avcodec_send_frame(codec_ctx_, frame);
-    if (error_code < 0) {
-        FFmpegError(error_code);
-        return false;
-    }
+    avcodec_send_frame(codec_ctx_, frame);
 
     while (true) {
-        error_code = avcodec_receive_packet(codec_ctx_, packet_);
+        int error_code = avcodec_receive_packet(codec_ctx_, packet_);
         if (error_code < 0) {
-            // FFmpegError(error_code);
+            FFmpegError(error_code);
             break;
         }
 
@@ -144,21 +140,25 @@ bool FFmpegWriter::Write(AVFrame* frame)
 
 void FFmpegWriter::Close()
 {
+    // Write null frame to represent end flag.
+    Write(nullptr);
+
     std::unique_lock<std::mutex> lock(mutex_);
 
-    if (header_written_) {
-        header_written_ = false;
+    if (fmt_ctx_) {
+        if (header_written_) {
+            header_written_ = false;
 
-        int error_code = av_write_trailer(fmt_ctx_);
-        if (error_code < 0) {
-            FFmpegError(error_code);
-            return;
+            int error_code = av_write_trailer(fmt_ctx_);
+            if (error_code < 0) {
+                FFmpegError(error_code);
+                return;
+            }
+            SPDLOG_INFO("Stop record.");
         }
-
         avio_close(fmt_ctx_->pb);
-
-        SPDLOG_INFO("Stop record.");
     }
+
     frame_index_ = 0;
     FreeResource();
 }
