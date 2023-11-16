@@ -72,13 +72,15 @@ bool FFmpegWriter::Open(AVStream* stream)
     }
 
     // Set some necessary parameters before opening the encoder.
+    codec_ctx_->bit_rate = 400000;
+    // resolution must be a multiple of two
     codec_ctx_->width = stream->codecpar->width;
     codec_ctx_->height = stream->codecpar->height;
-    codec_ctx_->time_base = {1, 10};
-    codec_ctx_->framerate = {10, 1};
-    codec_ctx_->bit_rate = 4000000;
-    codec_ctx_->pix_fmt = (AVPixelFormat)stream->codecpar->format;
+    codec_ctx_->time_base = {1, 25};
+    codec_ctx_->framerate = {25, 1};
     codec_ctx_->gop_size = 10;
+    codec_ctx_->max_b_frames = 1;
+    codec_ctx_->pix_fmt = (AVPixelFormat)stream->codecpar->format;
     // codec_ctx_->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
     error_code = avcodec_open2(codec_ctx_, nullptr, nullptr);
@@ -121,12 +123,13 @@ bool FFmpegWriter::Write(AVFrame* frame)
         frame->pts = frame_index_++;
     }
 
-    avcodec_send_frame(codec_ctx_, frame);
-
-    while (true) {
-        int error_code = avcodec_receive_packet(codec_ctx_, packet_);
-        if (error_code < 0) {
-            FFmpegError(error_code);
+    int ret = avcodec_send_frame(codec_ctx_, frame);
+    while (ret >= 0) {
+        ret = avcodec_receive_packet(codec_ctx_, packet_);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+            return false;
+        } else if (ret < 0) {
+            FFmpegError(ret);
             break;
         }
 

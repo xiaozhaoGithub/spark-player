@@ -187,9 +187,8 @@ AVFrame* FFmpegDecoder::GetFrame()
     av_packet_unref(packet_);
 
     int error_code = avcodec_receive_frame(codec_ctx_, frame_);
-    if (error_code != 0) {
+    if (error_code == AVERROR(EAGAIN) || error_code == AVERROR_EOF) {
         av_frame_unref(frame_);
-        FFmpegError(error_code);
 
         if (ret < 0) {
             end_ = true;
