@@ -63,11 +63,13 @@ bool FFmpegHelper::ReadMediaByAvio(const char* filename)
     int ret = av_file_map(filename, &buf, &buf_size, 0, nullptr);
     if (ret < 0) {
         FFmpegError(ret);
+        return false;
     }
 
     fmt_ctx = avformat_alloc_context();
     if (!fmt_ctx) {
         FFmpegError(AVERROR(ENOMEM));
+        return false;
     }
 
     int avio_ctx_buf_size = 4096;
@@ -81,18 +83,23 @@ bool FFmpegHelper::ReadMediaByAvio(const char* filename)
                                   nullptr, nullptr);
     if (!avio_ctx) {
         FFmpegError(AVERROR(ENOMEM));
+        return false;
     }
     fmt_ctx->pb = avio_ctx;
 
     ret = avformat_open_input(&fmt_ctx, nullptr, nullptr, nullptr);
     if (ret < 0) {
         FFmpegError(ret);
+        return false;
     }
 
     ret = avformat_find_stream_info(fmt_ctx, NULL);
     if (ret < 0) {
         FFmpegError(ret);
+        return false;
     }
 
     av_dump_format(fmt_ctx, 0, filename, 0);
+
+    return true;
 }
