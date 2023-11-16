@@ -5,6 +5,7 @@
 #include <QHBoxLayout>
 #include <QRadioButton>
 
+#include "codec/ffmpeghelper.h"
 #include "codec/video_worker_thread.h"
 #include "common/singleton.h"
 #include "config/config.h"
@@ -57,11 +58,15 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     record_widget_->setCurrentWidget(record_btn_);
     record_widget_->setFixedHeight(32);
 
+    auto read_file_btn = new QPushButton(tr("read file"), this);
+    read_file_btn->setFixedHeight(32);
+
     connect(play_btn_, &QPushButton::clicked, this, &VideoDisplayWidget::PlayClicked);
     connect(pause_btn_, &QPushButton::clicked, this, &VideoDisplayWidget::PauseClicked);
     connect(stop_btn, &QPushButton::clicked, this, &VideoDisplayWidget::StopClicked);
     connect(record_btn_, &QPushButton::clicked, this, &VideoDisplayWidget::RecordClicked);
     connect(stop_record_btn_, &QPushButton::clicked, this, &VideoDisplayWidget::StopRecordClicked);
+    connect(read_file_btn, &QPushButton::clicked, this, &VideoDisplayWidget::ReadFileClicked);
 
     auto software_dc = new QRadioButton(tr("soft decoding"), this);
     auto hardware_dc = new QRadioButton(tr("hard decoding"), this);
@@ -80,6 +85,7 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     auto btn_layout = new QHBoxLayout;
     btn_layout->addWidget(file_edit_);
     btn_layout->addWidget(select_file_btn);
+    btn_layout->addWidget(read_file_btn);
     btn_layout->addStretch(9);
     btn_layout->addWidget(software_dc);
     btn_layout->addWidget(hardware_dc);
@@ -125,6 +131,11 @@ void VideoDisplayWidget::StopRecordClicked()
 void VideoDisplayWidget::DecodeBtnClicked(int id)
 {
     Singleton<Config>::Instance()->SetAppConfigData("video_param", "enable_hw_decode", (bool)id);
+}
+
+void VideoDisplayWidget::ReadFileClicked()
+{
+    FFmpegHelper::ReadMediaByAvio(file_edit_->text().toStdString().data());
 }
 
 void VideoDisplayWidget::PlayState(bool playing)

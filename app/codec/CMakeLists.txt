@@ -6,5 +6,7 @@ set(Sources
 	codec/video_worker_thread.h
 	codec/ffmpegwriter.cc
 	codec/ffmpegwriter.h
+	codec/ffmpeghelper.cc
+	codec/ffmpeghelper.h
 	PARENT_SCOPE
 )
