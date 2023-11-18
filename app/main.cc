@@ -1,9 +1,13 @@
-#include "widget/video_display/video_display_widget.h"
-
 #include <QApplication>
 #include <QTextCodec>
 
+extern "C"
+{
+#include "libavformat/avformat.h"
+}
 #include "spdlog/spdlog.h"
+#include "window/mainwindow/mainwindow.h"
+
 
 int main(int argc, char* argv[])
 {
@@ -12,7 +16,7 @@ int main(int argc, char* argv[])
 
     QTextCodec::setCodecForLocale(QTextCodec::codecForName("UTF-8"));
 
-    VideoDisplayWidget w;
+    MainWindow w;
     w.show();
 
     // Register FFmpeg codecs and filters (deprecated in 4.0+)

@@ -39,7 +39,7 @@ int FFmpegHelper::read_packet(void* opaque, uint8_t* buf, int buffer_size)
     return read_size;
 }
 
-void FFmpegHelper::DecodeAudio(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt,
+void FFmpegHelper::DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame,
                                FILE* outfile_stream)
 {
     int ret = avcodec_send_packet(codec_ctx, pkt);
@@ -182,16 +182,19 @@ bool FFmpegHelper::SaveDecodeAudio(const char* filename, const char* outfile)
     }
 
     AVCodecContext* codec_ctx = avcodec_alloc_context3(codec);
-    if (!codec) {
+    if (!codec_ctx) {
         SPDLOG_ERROR("Failed to alloc codec context.");
         return false;
     }
+    DEFER(avcodec_free_context(&codec_ctx);)
 
     AVCodecParserContext* parser_ctx = av_parser_init(codec->id);
     if (!parser_ctx) {
         SPDLOG_ERROR("Failed to init codec parser.");
         return false;
     }
+    DEFER(av_parser_close(parser_ctx);)
+
     int ret = avcodec_open2(codec_ctx, codec, nullptr);
     if (ret < 0) {
         FFmpegError(ret);
@@ -215,8 +218,9 @@ bool FFmpegHelper::SaveDecodeAudio(const char* filename, const char* outfile)
     DEFER(fclose(outfile_stream);)
 
     AVPacket* pkt = av_packet_alloc();
+    DEFER(av_free_packet(pkt);)
 
-    AVFrame* decode_frame = nullptr;
+    AVFrame* decoded_frame = nullptr;
 
     uint8_t inbuf[AUDIO_INBUF_SIZE + AUDIO_REFILL_THRESH];
     size_t data_size = fread(inbuf, 1, AUDIO_INBUF_SIZE, file_stream);
@@ -224,11 +228,8 @@ bool FFmpegHelper::SaveDecodeAudio(const char* filename, const char* outfile)
     uint8_t* data = inbuf;
 
     while (data_size > 0) {
-        if (!decode_frame) {
-            decode_frame = av_frame_alloc();
-            if (!decode_frame) {
-                DEFER(av_free_packet(pkt);)
-
+        if (!(decoded_frame = av_frame_alloc())) {
+            if (!decoded_frame) {
                 SPDLOG_ERROR("Failed to alloc audio frame.");
                 return false;
             }
@@ -237,11 +238,17 @@ bool FFmpegHelper::SaveDecodeAudio(const char* filename, const char* outfile)
         int outbuf_size = 0;
         int used_size = av_parser_parse2(parser_ctx, codec_ctx, &pkt->data, &pkt->size, data,
                                          data_size, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
-
-        DecodeAudio(codec_ctx, decode_frame, pkt, outfile_stream);
+        if (used_size < 0) {
+            return false;
+            SPDLOG_ERROR("Error while parsing.");
+        }
 
         data += used_size;
         data_size -= used_size;
+
+        if (pkt->size > 0) {
+            DecodeAudio(codec_ctx, pkt, decoded_frame, outfile_stream);
+        }
 
         if (data_size < AUDIO_REFILL_THRESH) {
             memmove(inbuf, data, data_size);
@@ -254,10 +261,11 @@ bool FFmpegHelper::SaveDecodeAudio(const char* filename, const char* outfile)
         }
     }
 
-    // flush the decoder.
+    // Flush the decoder.
     pkt->data = nullptr;
     pkt->size = 0;
-    DecodeAudio(codec_ctx, nullptr, pkt, outfile_stream);
+    DecodeAudio(codec_ctx, pkt, decoded_frame, outfile_stream);
+    DEFER(av_frame_free(&decoded_frame);)
 
     AVSampleFormat sfmt = codec_ctx->sample_fmt;
     if (av_sample_fmt_is_planar(sfmt)) {
@@ -267,9 +275,6 @@ bool FFmpegHelper::SaveDecodeAudio(const char* filename, const char* outfile)
                     packed ? packed : "?");
         sfmt = av_get_packed_sample_fmt(sfmt);
     }
-
-    DEFER(av_free_packet(pkt); avcodec_free_context(&codec_ctx); av_parser_close(parser_ctx);
-          av_frame_free(&decode_frame); av_free_packet(pkt);)
 
     const char* fmt = nullptr;
     if ((ret = get_format_from_sample_fmt(&fmt, sfmt)) < 0) {

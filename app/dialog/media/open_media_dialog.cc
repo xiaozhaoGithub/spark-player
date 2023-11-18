@@ -15,7 +15,7 @@ OpenMediaDialog::OpenMediaDialog(QWidget* parent)
     file_edit_ = new QLineEdit(this);
     file_edit_->setFixedWidth(360);
     file_edit_->setText("E:/WorkSpace/test/golden-dark.mp4");
-    auto select_file_btn = new QPushButton(tr("select"), this);
+    auto select_file_btn = new QPushButton(tr("Select"), this);
     connect(select_file_btn, &QPushButton::clicked, this, &OpenMediaDialog::SelectFileClicked);
 
     url_edit_ = new QLineEdit(this);
@@ -32,10 +32,10 @@ OpenMediaDialog::OpenMediaDialog(QWidget* parent)
 #endif
     }
 
-    auto open_btn = new QPushButton(tr("open"), this);
+    auto open_btn = new QPushButton(tr("Open"), this);
     connect(open_btn, &QPushButton::clicked, this, &OpenMediaDialog::OpenClicked);
 
-    auto cancel_btn = new QPushButton(tr("cancel"), this);
+    auto cancel_btn = new QPushButton(tr("Cancel"), this);
     connect(cancel_btn, &QPushButton::clicked, this, &OpenMediaDialog::CancelClicked);
 
     // file
@@ -66,9 +66,9 @@ OpenMediaDialog::OpenMediaDialog(QWidget* parent)
     bottom_layout->addWidget(open_btn);
     bottom_layout->addWidget(cancel_btn);
 
-    tabwidget_->insertTab(kFile, file_widget, tr("file source"));
-    tabwidget_->insertTab(kNetwork, network_widget, tr("network source"));
-    tabwidget_->insertTab(kCapture, capture_widget, tr("capture source"));
+    tabwidget_->insertTab(kFile, file_widget, tr("File Source"));
+    tabwidget_->insertTab(kNetwork, network_widget, tr("Network Source"));
+    tabwidget_->insertTab(kCapture, capture_widget, tr("Capture Source"));
 
     auto mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(tabwidget_);

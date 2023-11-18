@@ -95,6 +95,6 @@ void VideoPlayerWidget::contextMenuEvent(QContextMenuEvent* event)
 void VideoPlayerWidget::InitMenu()
 {
     menu_ = new QMenu(this);
-    menu_->addAction(tr("full screen"), this, &VideoPlayerWidget::FullScreenClicked);
-    menu_->addAction(tr("exit full screen"), this, &VideoPlayerWidget::ExitFullScreenClicked);
+    menu_->addAction(tr("Full Screen"), this, &VideoPlayerWidget::FullScreenClicked);
+    menu_->addAction(tr("Exit Full Screen"), this, &VideoPlayerWidget::ExitFullScreenClicked);
 }

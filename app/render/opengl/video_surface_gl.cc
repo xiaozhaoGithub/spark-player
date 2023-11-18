@@ -151,8 +151,8 @@ void VideoSurfaceGL::contextMenuEvent(QContextMenuEvent* event)
 void VideoSurfaceGL::InitMenu()
 {
     menu_ = new QMenu(this);
-    menu_->addAction(tr("full screen"), this, &VideoSurfaceGL::FullScreenClicked);
-    menu_->addAction(tr("exit full screen"), this, &VideoSurfaceGL::ExitFullScreenClicked);
+    menu_->addAction(tr("Full Screen"), this, &VideoSurfaceGL::FullScreenClicked);
+    menu_->addAction(tr("Exit Full Screen"), this, &VideoSurfaceGL::ExitFullScreenClicked);
 }
 
 void VideoSurfaceGL::ReallocTex(QOpenGLTexturePtr tex, int type, int width, int height, int depth)

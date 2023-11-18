@@ -19,7 +19,7 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     file_edit_ = new QLineEdit(this);
     file_edit_->setEnabled(false);
     file_edit_->setFixedWidth(360);
-    auto select_file_btn = new QPushButton(tr("select"), this);
+    auto select_file_btn = new QPushButton(tr("Select"), this);
     connect(select_file_btn, &QPushButton::clicked, this, &VideoDisplayWidget::SelectMediaClicked);
 
     // player_ = new VideoPlayerWidget(this);
@@ -31,13 +31,13 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
 
     auto fill_bg_wiget = new QWidget(this);
 
-    play_btn_ = new QPushButton(tr("play"), this);
+    play_btn_ = new QPushButton(tr("Play"), this);
     play_btn_->setFixedHeight(32);
 
-    pause_btn_ = new QPushButton(tr("pause"), this);
+    pause_btn_ = new QPushButton(tr("Pause"), this);
     pause_btn_->setFixedHeight(32);
 
-    auto stop_btn = new QPushButton(tr("stop"), this);
+    auto stop_btn = new QPushButton(tr("Stop"), this);
     stop_btn->setFixedHeight(32);
 
     play_stop_widget_ = new QStackedWidget(this);
@@ -46,10 +46,10 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     play_stop_widget_->setCurrentWidget(play_btn_);
     play_stop_widget_->setFixedHeight(32);
 
-    record_btn_ = new QPushButton(tr("record"), this);
+    record_btn_ = new QPushButton(tr("Record"), this);
     record_btn_->setFixedHeight(32);
 
-    stop_record_btn_ = new QPushButton(tr("stop record"), this);
+    stop_record_btn_ = new QPushButton(tr("Stop Record"), this);
     stop_record_btn_->setFixedHeight(32);
 
     record_widget_ = new QStackedWidget(this);
@@ -58,7 +58,7 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     record_widget_->setCurrentWidget(record_btn_);
     record_widget_->setFixedHeight(32);
 
-    auto read_file_btn = new QPushButton(tr("read file"), this);
+    auto read_file_btn = new QPushButton(tr("Read File"), this);
     read_file_btn->setFixedHeight(32);
 
     connect(play_btn_, &QPushButton::clicked, this, &VideoDisplayWidget::PlayClicked);
@@ -68,8 +68,8 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     connect(stop_record_btn_, &QPushButton::clicked, this, &VideoDisplayWidget::StopRecordClicked);
     connect(read_file_btn, &QPushButton::clicked, this, &VideoDisplayWidget::ReadFileClicked);
 
-    auto software_dc = new QRadioButton(tr("soft decoding"), this);
-    auto hardware_dc = new QRadioButton(tr("hard decoding"), this);
+    auto software_dc = new QRadioButton(tr("Soft Decoding"), this);
+    auto hardware_dc = new QRadioButton(tr("Hard Decoding"), this);
 
     bool enable_hw_decode =
         Singleton<Config>::Instance()->AppConfigData("video_param", "enable_hw_decode", false).toBool();

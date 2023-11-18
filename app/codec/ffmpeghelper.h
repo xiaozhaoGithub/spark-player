@@ -51,7 +51,7 @@ private:
     };
 
     static int read_packet(void* opaque, uint8_t* buf, int buf_size);
-    static void DecodeAudio(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt,
+    static void DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame,
                             FILE* outfile_stream);
 };
 
