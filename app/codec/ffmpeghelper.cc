@@ -224,6 +224,10 @@ bool FFmpegHelper::SaveDecodeAudio(const char* filename, const char* outfile)
 
     uint8_t inbuf[AUDIO_INBUF_SIZE + AUDIO_REFILL_THRESH];
     size_t data_size = fread(inbuf, 1, AUDIO_INBUF_SIZE, file_stream);
+    if (data_size <= 0) {
+        SPDLOG_ERROR("Reading input file data exception.");
+        return false;
+    }
 
     uint8_t* data = inbuf;
 
