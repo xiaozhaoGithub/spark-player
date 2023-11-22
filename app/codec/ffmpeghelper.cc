@@ -39,8 +39,7 @@ int FFmpegHelper::read_packet(void* opaque, uint8_t* buf, int buffer_size)
     return read_size;
 }
 
-void FFmpegHelper::DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame,
-                               FILE* outfile_stream)
+void FFmpegHelper::DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame, FILE* outfile_fp)
 {
     int ret = avcodec_send_packet(codec_ctx, pkt);
     if (ret < 0) {
@@ -67,7 +66,7 @@ void FFmpegHelper::DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame
 
         for (int i = 0; i < frame->nb_samples; ++i) {
             for (int ch = 0; ch < codec_ctx->channels; ++ch) {
-                fwrite(frame->data[ch] + i * data_size, 1, data_size, outfile_stream);
+                fwrite(frame->data[ch] + i * data_size, 1, data_size, outfile_fp);
             }
         }
     }
@@ -170,9 +169,9 @@ static int get_format_from_sample_fmt(const char** fmt, enum AVSampleFormat samp
     return -1;
 }
 
-bool FFmpegHelper::SaveDecodeAudio(const char* filename, const char* outfile)
+bool FFmpegHelper::SaveDecodeAudio(const char* infile, const char* outfile)
 {
-    if (!filename || *filename == '\0' || !outfile || *outfile == '\0')
+    if (!infile || *infile == '\0' || !outfile || *outfile == '\0')
         return false;
 
     AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_MP2);
@@ -201,77 +200,77 @@ bool FFmpegHelper::SaveDecodeAudio(const char* filename, const char* outfile)
         return false;
     }
 
-    FILE* file_stream = fopen(filename, "rb");
-    if (!file_stream) {
+    FILE* infile_fp = fopen(infile, "rb");
+    if (!infile_fp) {
         SPDLOG_ERROR("Failed to open input file.");
         return false;
     }
-    DEFER(fclose(file_stream);)
+    DEFER(fclose(infile_fp);)
 
-    FILE* outfile_stream = fopen(outfile, "wb");
-    if (!outfile_stream) {
+    FILE* outfile_fp = fopen(outfile, "wb");
+    if (!outfile_fp) {
         av_free(codec_ctx);
 
         SPDLOG_ERROR("Failed to open output file.");
         return false;
     }
-    DEFER(fclose(outfile_stream);)
+    DEFER(fclose(outfile_fp);)
 
     AVPacket* pkt = av_packet_alloc();
-    DEFER(av_free_packet(pkt);)
+    if (!pkt) {
+        SPDLOG_ERROR("Failed to alloc packet.");
+        return false;
+    }
+    DEFER(av_packet_unref(pkt);)
 
-    AVFrame* decoded_frame = nullptr;
+    AVFrame* decoded_frame = av_frame_alloc();
+    if (!decoded_frame) {
+        SPDLOG_ERROR("Failed to alloc frame.");
+        return false;
+    }
+    DEFER(av_frame_free(&decoded_frame);)
 
     uint8_t inbuf[AUDIO_INBUF_SIZE + AUDIO_REFILL_THRESH];
-    size_t data_size = fread(inbuf, 1, AUDIO_INBUF_SIZE, file_stream);
+    uint8_t* data_buf = inbuf;
 
-    uint8_t* data = inbuf;
-
+    size_t data_size = fread(inbuf, 1, AUDIO_INBUF_SIZE, infile_fp);
     while (data_size > 0) {
-        if (!(decoded_frame = av_frame_alloc())) {
-            if (!decoded_frame) {
-                SPDLOG_ERROR("Failed to alloc audio frame.");
-                return false;
-            }
-        }
-
         int outbuf_size = 0;
-        int used_size = av_parser_parse2(parser_ctx, codec_ctx, &pkt->data, &pkt->size, data,
+        int used_size = av_parser_parse2(parser_ctx, codec_ctx, &pkt->data, &pkt->size, data_buf,
                                          data_size, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
         if (used_size < 0) {
             return false;
             SPDLOG_ERROR("Error while parsing.");
         }
 
-        data += used_size;
+        data_buf += used_size;
         data_size -= used_size;
 
         if (pkt->size > 0) {
-            DecodeAudio(codec_ctx, pkt, decoded_frame, outfile_stream);
+            DecodeAudio(codec_ctx, pkt, decoded_frame, outfile_fp);
         }
 
         if (data_size < AUDIO_REFILL_THRESH) {
-            memmove(inbuf, data, data_size);
-            data = inbuf;
+            memmove(inbuf, data_buf, data_size);
+            data_buf = inbuf;
 
-            size_t len = fread(data + data_size, 1, AUDIO_INBUF_SIZE - data_size, file_stream);
+            size_t len = fread(data_buf + data_size, 1, AUDIO_INBUF_SIZE - data_size, infile_fp);
             if (len > 0) {
                 data_size += len;
             }
         }
     }
 
-    // Flush the decoder.
+    // Flush the decoder, otherwise the last few frames may be lost.
     pkt->data = nullptr;
     pkt->size = 0;
-    DecodeAudio(codec_ctx, pkt, decoded_frame, outfile_stream);
-    DEFER(av_frame_free(&decoded_frame);)
+    DecodeAudio(codec_ctx, pkt, decoded_frame, outfile_fp);
 
     AVSampleFormat sfmt = codec_ctx->sample_fmt;
     if (av_sample_fmt_is_planar(sfmt)) {
         const char* packed = av_get_sample_fmt_name(sfmt);
-        SPDLOG_WARN("Warning: the sample format the decoder produced is planar "
-                    "(%s). This example will output the first channel only.",
+        SPDLOG_WARN("Warning: the sample format the decoder produced is planar {0}. This example "
+                    "will output the first channel only.",
                     packed ? packed : "?");
         sfmt = av_get_packed_sample_fmt(sfmt);
     }
