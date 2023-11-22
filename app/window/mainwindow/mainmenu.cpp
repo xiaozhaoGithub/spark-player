@@ -6,7 +6,7 @@ MainMenu::MainMenu(QWidget* parent)
     : QMenuBar(parent)
 {
     auto tool_menu = addMenu(tr("Tools"));
-    tool_menu->addAction(tr("Decode Video"), this, &MainMenu::DecodeAudio);
+    tool_menu->addAction(tr("Decode Audio"), this, &MainMenu::DecodeAudio);
 }
 
 MainMenu::~MainMenu() {}
