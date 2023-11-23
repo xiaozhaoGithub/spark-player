@@ -45,6 +45,9 @@ public:
     static bool SaveDecodeAudio(const char* infile, const char* outfile);
     static bool SaveEncodeAudio(const char* infile, const char* outfile);
 
+    static bool SaveDecodeVideo(const char* infile, const char* outfile);
+    static bool SaveEncodeVideo(const char* infile, const char* outfile);
+
 private:
     struct BufferData
     {

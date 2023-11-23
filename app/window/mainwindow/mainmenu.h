@@ -12,6 +12,7 @@ public:
 
 private slots:
     void CodecAudio();
+    void CodecVideo();
 };
 
 #endif

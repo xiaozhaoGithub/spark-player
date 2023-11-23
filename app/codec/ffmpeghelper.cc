@@ -395,3 +395,13 @@ bool FFmpegHelper::SaveEncodeAudio(const char* infile, const char* outfile)
 
     return true;
 }
+
+bool FFmpegHelper::SaveDecodeVideo(const char* infile, const char* outfile)
+{
+    return false;
+}
+
+bool FFmpegHelper::SaveEncodeVideo(const char* infile, const char* outfile)
+{
+    return false;
+}

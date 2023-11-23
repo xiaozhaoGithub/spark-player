@@ -4,5 +4,7 @@ set(Sources
 	dialog/media/open_media_dialog.h
 	dialog/media/codec_audio_dialog.cc
 	dialog/media/codec_audio_dialog.h
+	dialog/media/codec_video_dialog.cc
+	dialog/media/codec_video_dialog.h
 	PARENT_SCOPE
 )

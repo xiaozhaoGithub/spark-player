@@ -1,4 +1,4 @@
-#include "codec_audio_dialog.h"
+#include "codec_video_dialog.h"
 
 #include <QFileDialog>
 #include <QMessagebox>
@@ -8,32 +8,27 @@
 
 #include "codec/ffmpeghelper.h"
 
-CodecAudioDialog::CodecAudioDialog(QWidget* parent)
+CodecVideoDialog::CodecVideoDialog(QWidget* parent)
     : QDialog(parent)
 {
     file_edit_ = new QLineEdit(this);
-    file_edit_->setText("E:/WorkSpace/GithubCode/ffmpeg-player/build/app/Debug/breakout.pcm");
     file_edit_->setFixedWidth(360);
     select_file_btn_ = new QPushButton(tr("Select"), this);
-    connect(select_file_btn_, &QPushButton::clicked, this, &CodecAudioDialog::SelectFileClicked);
+    connect(select_file_btn_, &QPushButton::clicked, this, &CodecVideoDialog::SelectFileClicked);
 
     outfile_edit_ = new QLineEdit(this);
-    outfile_edit_->setText("E:/WorkSpace/GithubCode/ffmpeg-player/build/app/Debug/breakout.pcm");
     outfile_edit_->setFixedWidth(360);
     select_outfile_btn_ = new QPushButton(tr("Select"), this);
-    connect(select_outfile_btn_, &QPushButton::clicked, this, &CodecAudioDialog::SelectFileClicked);
-
-    auto mp3_btn = new QRadioButton("mp3", this);
-    mp3_btn->setChecked(true);
+    connect(select_outfile_btn_, &QPushButton::clicked, this, &CodecVideoDialog::SelectFileClicked);
 
     auto encode_btn = new QPushButton(tr("Encode"), this);
-    connect(encode_btn, &QPushButton::clicked, this, &CodecAudioDialog::EncodeClicked);
+    connect(encode_btn, &QPushButton::clicked, this, &CodecVideoDialog::EncodeClicked);
 
     auto decode_btn = new QPushButton(tr("Decode"), this);
-    connect(decode_btn, &QPushButton::clicked, this, &CodecAudioDialog::DecodeClicked);
+    connect(decode_btn, &QPushButton::clicked, this, &CodecVideoDialog::DecodeClicked);
 
     auto cancel_btn = new QPushButton(tr("Cancel"), this);
-    connect(cancel_btn, &QPushButton::clicked, this, &CodecAudioDialog::CancelClicked);
+    connect(cancel_btn, &QPushButton::clicked, this, &CodecVideoDialog::CancelClicked);
 
     auto file_layout = new QHBoxLayout;
     file_layout->addWidget(file_edit_);
@@ -46,7 +41,6 @@ CodecAudioDialog::CodecAudioDialog(QWidget* parent)
     outfile_layout->setAlignment(Qt::AlignCenter);
 
     auto audio_type_layout = new QHBoxLayout;
-    audio_type_layout->addWidget(mp3_btn);
     audio_type_layout->addStretch();
 
     auto bottom_layout = new QHBoxLayout;
@@ -62,9 +56,9 @@ CodecAudioDialog::CodecAudioDialog(QWidget* parent)
     mainLayout->addLayout(bottom_layout);
 }
 
-CodecAudioDialog::~CodecAudioDialog() {}
+CodecVideoDialog::~CodecVideoDialog() {}
 
-void CodecAudioDialog::SelectFileClicked()
+void CodecVideoDialog::SelectFileClicked()
 {
     QFileDialog dlg;
     int ret = dlg.exec();
@@ -80,36 +74,34 @@ void CodecAudioDialog::SelectFileClicked()
     }
 }
 
-void CodecAudioDialog::EncodeClicked()
+void CodecVideoDialog::EncodeClicked()
 {
-    bool ret = FFmpegHelper::SaveEncodeAudio(file_edit_->text().toStdString().data(),
+    bool ret = FFmpegHelper::SaveEncodeVideo(file_edit_->text().toStdString().data(),
                                              outfile_edit_->text().toStdString().data());
 
     if (ret) {
-        QMessageBox::information(this, tr("Info"), tr("Successfully save the encoded audio file"));
+        QMessageBox::information(this, tr("Info"), tr("Successfully save the encoded video file"));
         accept();
     } else {
-        QMessageBox::warning(this, tr("Info"), tr("Failed to save the encoded audio file"));
+        QMessageBox::warning(this, tr("Info"), tr("Failed to save the encoded video file"));
     }
 }
 
-void CodecAudioDialog::DecodeClicked()
+void CodecVideoDialog::DecodeClicked()
 {
-    bool ret = FFmpegHelper::SaveDecodeAudio(file_edit_->text().toStdString().data(),
+    bool ret = FFmpegHelper::SaveDecodeVideo(file_edit_->text().toStdString().data(),
                                              outfile_edit_->text().toStdString().data());
 
     if (ret) {
-        QMessageBox::information(this, tr("Info"), tr("Successfully save the decoded audio file"));
+        QMessageBox::information(this, tr("Info"), tr("Successfully save the decoded video file"));
         accept();
     } else {
-        QMessageBox::warning(this, tr("Info"), tr("Failed to save the decoded audio file"));
+        QMessageBox::warning(this, tr("Info"), tr("Failed to save the decoded video file"));
     }
-
-    accept();
 }
 
 
-void CodecAudioDialog::CancelClicked()
+void CodecVideoDialog::CancelClicked()
 {
     reject();
 }
