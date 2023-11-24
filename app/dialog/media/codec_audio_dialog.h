@@ -8,19 +8,20 @@
 
 #include "common/media_info.h"
 
-class DecodeAudioDialog : public QDialog
+class CodecAudioDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit DecodeAudioDialog(QWidget* parent = nullptr);
-    ~DecodeAudioDialog();
+    explicit CodecAudioDialog(QWidget* parent = nullptr);
+    ~CodecAudioDialog();
 
     MediaInfo media();
 
 private slots:
     void SelectFileClicked();
     void DecodeClicked();
+    void EncodeClicked();
     void CancelClicked();
 
 private:

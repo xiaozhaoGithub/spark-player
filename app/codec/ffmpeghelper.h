@@ -41,7 +41,12 @@ public:
     static void FFmpegError(int code);
 
     static bool ReadMediaByAvio(const char* filename);
-    static bool SaveDecodeAudio(const char* filename, const char* outfile);
+
+    static bool SaveDecodeAudio(const char* infile, const char* outfile);
+    static bool SaveEncodeAudio(const char* infile, const char* outfile);
+
+    static bool SaveDecodeVideo(const char* infile, const char* outfile);
+    static bool SaveEncodeVideo(const char* infile, const char* outfile);
 
 private:
     struct BufferData
@@ -51,8 +56,8 @@ private:
     };
 
     static int read_packet(void* opaque, uint8_t* buf, int buf_size);
-    static void DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame,
-                            FILE* outfile_stream);
+    static void DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame, FILE* outfile_fp);
+    static int EncodeAudio(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt, FILE* outfile_fp);
 };
 
 #endif

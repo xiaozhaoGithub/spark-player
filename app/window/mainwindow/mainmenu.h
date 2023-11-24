@@ -11,7 +11,8 @@ public:
     ~MainMenu();
 
 private slots:
-    void DecodeAudio();
+    void CodecAudio();
+    void CodecVideo();
 };
 
 #endif

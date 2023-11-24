@@ -1,5 +1,9 @@
 #include "video_worker_thread.h"
 
+#include <QApplication>
+
+#include "spdlog/spdlog.h"
+
 VideoWorkerThread::VideoWorkerThread(QObject* parent)
     : QThread(parent)
 {
@@ -38,11 +42,15 @@ void VideoWorkerThread::Stop()
 void VideoWorkerThread::StartRecord()
 {
     QString filename =
-        QString("video_record_%1.mp4").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss"));
+        QApplication::applicationDirPath() + "/"
+        + QString("video_record_%1.mp4").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss"));
 
     MediaInfo media;
     media.type = decoder_->media()->type;
     media.src = filename.toStdString();
+    // media.type = kCapture;
+    // media.src = "desktop";
+
     writer_->set_media(media);
 
     if (writer_->Open(decoder_->stream())) {
