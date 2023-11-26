@@ -38,6 +38,16 @@ public:
     explicit FFmpegHelper();
     ~FFmpegHelper();
 
+    struct AvInfo
+    {
+        std::string codec_name;
+        std::string video_size;
+        int framerate;
+        int bit_rate;
+        int gop_size;
+        int max_b_frames;
+    };
+
     static void FFmpegError(int code);
 
     static bool ReadMediaByAvio(const char* filename);
@@ -46,7 +56,7 @@ public:
     static bool SaveEncodeAudio(const char* infile, const char* outfile);
 
     static bool SaveDecodeVideo(const char* infile, const char* outfile);
-    static bool SaveEncodeVideo(const char* infile, const char* outfile);
+    static bool SaveEncodeVideo(const AvInfo& info, const char* infile, const char* outfile);
 
 private:
     struct BufferData
@@ -56,8 +66,12 @@ private:
     };
 
     static int read_packet(void* opaque, uint8_t* buf, int buf_size);
+
     static void DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame, FILE* outfile_fp);
     static int EncodeAudio(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt, FILE* outfile_fp);
+
+    static void EncodeVideo(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt, FILE* outfile_fp);
+    static void DecodeVideo(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame, FILE* outfile_fp);
 };
 
 #endif

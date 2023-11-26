@@ -1,5 +1,11 @@
 #include "ffmpeghelper.h"
-
+extern "C"
+{
+#include "libavutil/avutil.h"
+#include "libavutil/imgutils.h"
+#include "libavutil/opt.h"
+#include "libavutil/parseutils.h"
+}
 #include "spdlog/spdlog.h"
 
 #define AUDIO_INBUF_SIZE 20480
@@ -95,6 +101,59 @@ int FFmpegHelper::EncodeAudio(AVCodecContext* codec_ctx, AVFrame* frame, AVPacke
     }
 
     return ret;
+}
+
+void FFmpegHelper::EncodeVideo(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt, FILE* outfile_fp)
+{
+    int ret = avcodec_send_frame(codec_ctx, frame);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return;
+    }
+
+    while (ret >= 0) {
+        ret = avcodec_receive_packet(codec_ctx, pkt);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+            return;
+        } else if (ret < 0) {
+            FFmpegError(ret);
+            return;
+        }
+
+        fwrite(pkt->data, 1, pkt->size, outfile_fp);
+
+        av_packet_unref(pkt);
+    }
+
+    return;
+}
+
+void FFmpegHelper::DecodeVideo(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame, FILE* outfile_fp)
+{
+    int ret = avcodec_send_packet(codec_ctx, pkt);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return;
+    }
+
+    while (ret >= 0) {
+        ret = avcodec_receive_frame(codec_ctx, frame);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+            return;
+        } else if (ret < 0) {
+            FFmpegError(ret);
+            return;
+        }
+
+        // YUV420P
+        fwrite(frame->data[0], 1, frame->width * frame->height, outfile_fp);
+        fwrite(frame->data[1], 1, frame->width * frame->height / 4, outfile_fp);
+        fwrite(frame->data[2], 1, frame->width * frame->height / 4, outfile_fp);
+
+        av_frame_unref(frame);
+    }
+
+    return;
 }
 
 bool FFmpegHelper::ReadMediaByAvio(const char* filename)
@@ -363,6 +422,7 @@ bool FFmpegHelper::SaveEncodeAudio(const char* infile, const char* outfile)
         SPDLOG_ERROR("Failed to alloc packet.");
         return false;
     }
+    DEFER(av_packet_free(&pkt););
 
     AVFrame* frame = av_frame_alloc();
     if (!frame) {
@@ -398,10 +458,212 @@ bool FFmpegHelper::SaveEncodeAudio(const char* infile, const char* outfile)
 
 bool FFmpegHelper::SaveDecodeVideo(const char* infile, const char* outfile)
 {
-    return false;
+    AVFormatContext* fmt_ctx = nullptr;
+    int ret = avformat_open_input(&fmt_ctx, infile, nullptr, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+    DEFER(avformat_close_input(&fmt_ctx););
+
+    // Fill stream info
+    ret = avformat_find_stream_info(fmt_ctx, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    ret = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    AVCodecContext* codec_ctx = avcodec_alloc_context3(nullptr);
+    if (!codec_ctx) {
+        SPDLOG_ERROR("Failed to alloc codec context.");
+        return false;
+    }
+    DEFER(avcodec_free_context(&codec_ctx););
+
+    int video_index = ret;
+    AVStream* stream = fmt_ctx->streams[video_index];
+
+    AVCodec* codec = avcodec_find_decoder(stream->codecpar->codec_id);
+    if (!codec) {
+        SPDLOG_ERROR("Failed to find codec.");
+        return false;
+    }
+
+    ret = avcodec_parameters_to_context(codec_ctx, stream->codecpar);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    ret = avcodec_open2(codec_ctx, codec, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+    DEFER(avcodec_close(codec_ctx););
+
+    AVPacket* pkt = av_packet_alloc();
+    if (!pkt) {
+        SPDLOG_ERROR("Failed to alloc packet.");
+        return false;
+    }
+    DEFER(av_packet_free(&pkt););
+
+    AVFrame* frame = av_frame_alloc();
+    if (!frame) {
+        SPDLOG_ERROR("Failed to alloc frame.");
+        return false;
+    }
+    DEFER(av_frame_free(&frame););
+
+    FILE* outfile_fp = fopen(outfile, "wb");
+    if (!outfile_fp) {
+        SPDLOG_ERROR("Failed to open outfile.");
+        return false;
+    }
+    DEFER(fclose(outfile_fp););
+
+
+    // Write frame to outfile
+    while (ret >= 0) {
+        ret = av_read_frame(fmt_ctx, pkt);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+            break;
+        } else if (ret < 0) {
+            FFmpegError(ret);
+            return false;
+        }
+
+        if (pkt->stream_index != video_index) {
+            continue;
+        }
+
+        DecodeVideo(codec_ctx, pkt, frame, outfile_fp);
+
+        av_packet_unref(pkt);
+    }
+    // Flush decoder
+    DecodeVideo(codec_ctx, nullptr, frame, outfile_fp);
+
+    return true;
 }
 
-bool FFmpegHelper::SaveEncodeVideo(const char* infile, const char* outfile)
+bool FFmpegHelper::SaveEncodeVideo(const AvInfo& info, const char* infile, const char* outfile)
 {
-    return false;
+    AVCodec* codec = avcodec_find_encoder_by_name(info.codec_name.data());
+    if (!codec) {
+        SPDLOG_ERROR("Failed to find video codec {0}.", info.codec_name);
+        return false;
+    }
+
+    AVCodecContext* codec_ctx = avcodec_alloc_context3(codec);
+    if (!codec_ctx) {
+        SPDLOG_ERROR("Failed to alloc codec context.");
+        return false;
+    }
+    DEFER(avcodec_free_context(&codec_ctx);)
+
+    int width;
+    int height;
+    int ret = av_parse_video_size(&width, &height, info.video_size.data());
+    if (ret < 0) {
+        SPDLOG_ERROR("Failed to parse video size:{0}.", info.video_size);
+        return false;
+    }
+
+    // Encoder params
+    codec_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
+    codec_ctx->width = width;
+    codec_ctx->height = height;
+    codec_ctx->framerate = {info.framerate, 1};
+    codec_ctx->time_base = {1, info.framerate};
+    codec_ctx->bit_rate = info.bit_rate;
+    codec_ctx->gop_size = info.gop_size;
+    codec_ctx->max_b_frames = info.max_b_frames;
+
+    if (codec->id == AV_CODEC_ID_H264) {
+        av_opt_set(codec_ctx->priv_data, "preset", "slow", 0);
+    }
+
+    ret = avcodec_open2(codec_ctx, codec, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+    DEFER(avcodec_close(codec_ctx);)
+
+    // Intput and output file
+    FILE* infile_fp = fopen(infile, "rb");
+    if (!infile_fp) {
+        SPDLOG_ERROR("Failed to open infile.");
+        return false;
+    }
+    DEFER(fclose(infile_fp););
+
+    FILE* outfile_fp = fopen(outfile, "wb");
+    if (!outfile_fp) {
+        SPDLOG_ERROR("Failed to open output file.");
+        return false;
+    }
+    DEFER(fclose(outfile_fp);)
+
+
+    AVPacket* pkt = av_packet_alloc();
+    if (!pkt) {
+        SPDLOG_ERROR("Failed to alloc packet.");
+        return false;
+    }
+    DEFER(av_packet_free(&pkt);)
+
+    AVFrame* frame = av_frame_alloc();
+    if (!frame) {
+        SPDLOG_ERROR("Failed to alloc frame.");
+        return false;
+    }
+    DEFER(av_frame_free(&frame);)
+
+    frame->format = codec_ctx->pix_fmt;
+    frame->width = codec_ctx->width;
+    frame->height = codec_ctx->height;
+
+    // Malloc image buffer
+    // yuv420p: w * h * 3/2
+    uint8_t* frame_buffer = (uint8_t*)av_malloc(
+        av_image_get_buffer_size(codec_ctx->pix_fmt, codec_ctx->width, codec_ctx->height, 1));
+    DEFER(av_freep(&frame_buffer);)
+
+    // Fill data and linesize
+    av_image_fill_arrays(frame->data, frame->linesize, frame_buffer, codec_ctx->pix_fmt,
+                         codec_ctx->width, codec_ctx->height, 1);
+
+    SPDLOG_INFO("Start video encoding encoder:{0}, video size:[{1}x{2}], pixel format:{3}.",
+                codec->name, width, height, codec_ctx->pix_fmt);
+
+    int video_size = width * height;
+
+    int frame_num = 0;
+    while (fread(frame_buffer, 1, video_size * 3 / 2, infile_fp) == video_size * 3 / 2) {
+        frame->data[0] = frame_buffer;
+        frame->data[1] = frame_buffer + video_size;
+        frame->data[2] = frame_buffer + video_size + video_size / 4;
+        // Presentation time order in encoder.
+        frame->pts = frame_num++;
+
+        EncodeVideo(codec_ctx, frame, pkt, outfile_fp);
+    }
+    EncodeVideo(codec_ctx, nullptr, pkt, outfile_fp);
+
+    // Add sequence end code to have a real MPEG file
+    uint8_t endcode[] = {0, 0, 1, 0xb7};
+    if (codec->id == AV_CODEC_ID_MPEG1VIDEO || codec->id == AV_CODEC_ID_MPEG2VIDEO) {
+        fwrite(endcode, 1, sizeof(endcode), outfile_fp);
+    }
+
+    return true;
 }
