@@ -16,13 +16,11 @@ CodecVideoDialog::CodecVideoDialog(QWidget* parent)
 {
     file_edit_ = new QLineEdit(this);
     file_edit_->setFixedWidth(360);
-    file_edit_->setText("E:/WorkSpaceCode/GithubCode/ffmpeg-player/build/app/Debug/10.yuv");
     select_file_btn_ = new QPushButton(tr("Select"), this);
     connect(select_file_btn_, &QPushButton::clicked, this, &CodecVideoDialog::SelectFileClicked);
 
     outfile_edit_ = new QLineEdit(this);
     outfile_edit_->setFixedWidth(360);
-    outfile_edit_->setText("E:/WorkSpaceCode/GithubCode/ffmpeg-player/build/app/Debug/out.h264");
     select_outfile_btn_ = new QPushButton(tr("Select"), this);
     connect(select_outfile_btn_, &QPushButton::clicked, this, &CodecVideoDialog::SelectFileClicked);
 
