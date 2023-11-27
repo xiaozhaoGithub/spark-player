@@ -224,6 +224,139 @@ bool FFmpegHelper::ReadMediaByAvio(const char* filename)
     return true;
 }
 
+bool FFmpegHelper::SaveTranscodeFormat(const AvInfo& info, const char* infile, const char* outfile)
+{
+    AVFormatContext* infmt_ctx = nullptr;
+    int ret = avformat_open_input(&infmt_ctx, infile, nullptr, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+    DEFER(avformat_close_input(&infmt_ctx);)
+
+    ret = avformat_find_stream_info(infmt_ctx, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    AVFormatContext* outfmt_ctx = nullptr;
+    ret = avformat_alloc_output_context2(&outfmt_ctx, nullptr, nullptr, outfile);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+    DEFER(avformat_free_context(outfmt_ctx);)
+
+    // Copy all streams.(If you want, you can only operate part of the stream.)
+    for (int i = 0; i < infmt_ctx->nb_streams; ++i) {
+        AVStream* in_stream = infmt_ctx->streams[i];
+        AVStream* out_stream = avformat_new_stream(outfmt_ctx, nullptr);
+        if (!out_stream) {
+            SPDLOG_ERROR("Failed to create out stream index[{0}]", i);
+            continue;
+        }
+
+        ret = avcodec_parameters_copy(out_stream->codecpar, in_stream->codecpar);
+        if (ret < 0) {
+            FFmpegError(ret);
+            continue;
+        }
+        // Solve incompatible for codec
+        out_stream->codecpar->codec_tag = 0;
+    }
+
+    // Open avio before writer header
+    if (!(outfmt_ctx->oformat->flags & AVFMT_NOFILE)) {
+        ret = avio_open2(&outfmt_ctx->pb, outfile, AVIO_FLAG_WRITE, nullptr, nullptr);
+        if (ret < 0) {
+            FFmpegError(ret);
+            return false;
+        }
+    }
+    DEFER(avio_closep(&outfmt_ctx->pb);)
+
+    ret = avformat_write_header(outfmt_ctx, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    AVPacket* pkt = av_packet_alloc();
+    if (!pkt) {
+        SPDLOG_ERROR("Failed to alloc packet.");
+        return false;
+    }
+    DEFER(av_packet_free(&pkt);)
+
+    // Seek frame
+    ret = av_seek_frame(infmt_ctx, -1, info.start_time * AV_TIME_BASE, AVSEEK_FLAG_ANY);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    int64_t* start_pts = new int64_t[infmt_ctx->nb_streams];
+    memset(start_pts, 0, infmt_ctx->nb_streams * sizeof(int64_t));
+
+    int64_t* start_dts = new int64_t[infmt_ctx->nb_streams];
+    memset(start_dts, 0, infmt_ctx->nb_streams * sizeof(int64_t));
+
+    DEFER(delete[] start_pts; delete[] start_dts;)
+
+    while (av_read_frame(infmt_ctx, pkt) == 0) {
+        AVStream* in_stream = infmt_ctx->streams[pkt->stream_index];
+        AVStream* out_stream = outfmt_ctx->streams[pkt->stream_index];
+
+        if (info.end_time * in_stream->time_base.den < pkt->pts) {
+            av_packet_unref(pkt);
+            break;
+        };
+
+        // Init start pts and dts, due to cropping.
+        if (start_pts[pkt->stream_index] == 0) {
+            start_pts[pkt->stream_index] = pkt->pts;
+        }
+        if (start_dts[pkt->stream_index] == 0) {
+            start_dts[pkt->stream_index] = pkt->dts;
+        }
+
+        // Different encapsulation stream timebase may be different and timestamp need to be converted.
+        pkt->pts -= start_pts[pkt->stream_index];
+        pkt->dts -= start_dts[pkt->stream_index];
+        av_packet_rescale_ts(pkt, in_stream->time_base, out_stream->time_base); // pts, dts, duration...
+        if (pkt->pts < 0) {
+            pkt->pts = 0;
+        }
+        if (pkt->dts < 0) {
+            pkt->dts = 0;
+        }
+        pkt->pos = -1;
+
+        if (pkt->dts > pkt->pts) {
+            av_packet_unref(pkt);
+            continue;
+        }
+
+        ret = av_interleaved_write_frame(outfmt_ctx, pkt);
+        if (ret < 0) {
+            FFmpegError(ret);
+            av_packet_unref(pkt);
+            break;
+        }
+
+        av_packet_unref(pkt);
+    }
+
+    ret = av_write_trailer(outfmt_ctx);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    return true;
+}
+
 static int get_format_from_sample_fmt(const char** fmt, enum AVSampleFormat sample_fmt)
 {
     int i;
@@ -643,7 +776,7 @@ bool FFmpegHelper::SaveEncodeVideo(const AvInfo& info, const char* infile, const
                          codec_ctx->width, codec_ctx->height, 1);
 
     SPDLOG_INFO("Start video encoding encoder:{0}, video size:[{1}x{2}], pixel format:{3}.",
-                codec->name, width, height, codec_ctx->pix_fmt);
+                codec->name, width, height, (int)codec_ctx->pix_fmt);
 
     int video_size = width * height;
 

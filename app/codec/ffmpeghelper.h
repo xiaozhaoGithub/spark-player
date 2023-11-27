@@ -46,11 +46,16 @@ public:
         int bit_rate;
         int gop_size;
         int max_b_frames;
+
+        int start_time;
+        int end_time;
     };
 
     static void FFmpegError(int code);
 
     static bool ReadMediaByAvio(const char* filename);
+
+    static bool SaveTranscodeFormat(const AvInfo& info, const char* infile, const char* outfile);
 
     static bool SaveDecodeAudio(const char* infile, const char* outfile);
     static bool SaveEncodeAudio(const char* infile, const char* outfile);

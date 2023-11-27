@@ -3,8 +3,10 @@
 
 #include <QComboBox>
 #include <QDialog>
+#include <QGridLayout>
 #include <QLineEdit>
 #include <QTabWidget>
+#include <QTimeEdit>
 
 #include "common/media_info.h"
 
@@ -17,8 +19,19 @@ public:
     ~CodecVideoDialog();
 
 private:
+    enum TabIndex
+    {
+        kDecode,
+        kEncode,
+        kTranscode
+    };
+
+    QGridLayout* InitGridLayout(const QList<QPair<QWidget*, QWidget*>>& widget_pair_list);
+
+    void Transcode();
     void Decode();
     void Encode();
+
 
 private slots:
     void SelectFileClicked();
@@ -42,6 +55,9 @@ private:
 
     QComboBox* codec_combo_;
     QComboBox* encoder_speed_combo_;
+
+    QTimeEdit* start_time_edit_;
+    QTimeEdit* end_time_edit_;
 };
 
 #endif
