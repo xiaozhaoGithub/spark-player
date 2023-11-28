@@ -33,7 +33,6 @@ private slots:
     void RecordClicked();
     void StopRecordClicked();
     void DecodeBtnClicked(int id);
-    void ReadFileClicked();
 
     void PlayState(bool playing);
     void RecordState(bool recording);

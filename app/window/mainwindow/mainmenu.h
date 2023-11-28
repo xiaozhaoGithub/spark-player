@@ -13,6 +13,7 @@ public:
 private slots:
     void CodecAudio();
     void CodecVideo();
+    void ExportStream();
 };
 
 #endif

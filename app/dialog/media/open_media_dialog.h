@@ -7,8 +7,9 @@
 #include <QTabWidget>
 
 #include "common/media_info.h"
+#include "dialog/base/custom_dialog.h"
 
-class OpenMediaDialog : public QDialog
+class OpenMediaDialog : public ConfirmDialog
 {
     Q_OBJECT
 
@@ -20,8 +21,6 @@ public:
 
 private slots:
     void SelectFileClicked();
-    void OpenClicked();
-    void CancelClicked();
 
 private:
     QTabWidget* tabwidget_;

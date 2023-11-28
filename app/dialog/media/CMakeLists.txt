@@ -6,5 +6,7 @@ set(Sources
 	dialog/media/codec_audio_dialog.h
 	dialog/media/codec_video_dialog.cc
 	dialog/media/codec_video_dialog.h
+	dialog/media/export_stream_dialog.cc
+	dialog/media/export_stream_dialog.h
 	PARENT_SCOPE
 )

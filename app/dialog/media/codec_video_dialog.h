@@ -9,8 +9,9 @@
 #include <QTimeEdit>
 
 #include "common/media_info.h"
+#include "dialog/base/custom_dialog.h"
 
-class CodecVideoDialog : public QDialog
+class CodecVideoDialog : public ConfirmDialog
 {
     Q_OBJECT
 
@@ -35,8 +36,8 @@ private:
 
 private slots:
     void SelectFileClicked();
-    void OkClicked();
-    void CancelClicked();
+    void OkClicked() override;
+    void CancelClicked() override;
 
 private:
     QLineEdit* file_edit_;

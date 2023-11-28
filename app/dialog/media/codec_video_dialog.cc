@@ -12,18 +12,18 @@
 #include "codec/ffmpeghelper.h"
 
 CodecVideoDialog::CodecVideoDialog(QWidget* parent)
-    : QDialog(parent)
+    : ConfirmDialog(parent)
 {
+    setWindowTitle(tr("Codec Video"));
+
     file_edit_ = new QLineEdit(this);
     file_edit_->setFixedWidth(360);
-    file_edit_->setText("E:/WorkSpaceCode/GithubCode/ffmpeg-player/build/app/Debug/10.mp4");
-    select_file_btn_ = new QPushButton(tr("Select"), this);
+    select_file_btn_ = new QPushButton(tr("..."), this);
     connect(select_file_btn_, &QPushButton::clicked, this, &CodecVideoDialog::SelectFileClicked);
 
     outfile_edit_ = new QLineEdit(this);
     outfile_edit_->setFixedWidth(360);
-    outfile_edit_->setText("E:/WorkSpaceCode/GithubCode/ffmpeg-player/build/app/Debug/10.flv");
-    select_outfile_btn_ = new QPushButton(tr("Select"), this);
+    select_outfile_btn_ = new QPushButton(tr("..."), this);
     connect(select_outfile_btn_, &QPushButton::clicked, this, &CodecVideoDialog::SelectFileClicked);
 
     // normal
@@ -86,12 +86,6 @@ CodecVideoDialog::CodecVideoDialog(QWidget* parent)
     codec_tabwidget_->insertTab(kEncode, encoder_widget, tr("Encode"));
     codec_tabwidget_->insertTab(kTranscode, transcode_widget, tr("Transcode"));
 
-    auto ok_btn = new QPushButton(tr("OK"), this);
-    connect(ok_btn, &QPushButton::clicked, this, &CodecVideoDialog::OkClicked);
-
-    auto cancel_btn = new QPushButton(tr("Cancel"), this);
-    connect(cancel_btn, &QPushButton::clicked, this, &CodecVideoDialog::CancelClicked);
-
     auto file_layout = new QHBoxLayout;
     file_layout->addWidget(file_edit_);
     file_layout->addWidget(select_file_btn_);
@@ -115,16 +109,10 @@ CodecVideoDialog::CodecVideoDialog(QWidget* parent)
     transcode_layout->addLayout(crop_grid_layout);
     transcode_layout->addStretch();
 
-    auto bottom_layout = new QHBoxLayout;
-    bottom_layout->addStretch();
-    bottom_layout->addWidget(ok_btn);
-    bottom_layout->addWidget(cancel_btn);
-
-    auto main_layout = new QVBoxLayout(this);
+    auto main_layout = new QVBoxLayout(main_widget_);
     main_layout->addLayout(file_layout);
     main_layout->addLayout(outfile_layout);
     main_layout->addWidget(codec_tabwidget_);
-    main_layout->addLayout(bottom_layout);
 }
 
 CodecVideoDialog::~CodecVideoDialog() {}
@@ -213,6 +201,16 @@ void CodecVideoDialog::Decode()
 
 void CodecVideoDialog::OkClicked()
 {
+
+    bool ret = FFmpegHelper::ExportSingleStream(0, file_edit_->text().toStdString().data(),
+                                                outfile_edit_->text().toStdString().data());
+
+    if (ret) {
+        QMessageBox::information(this, tr("Info"), tr("Successfully save the decoded video file"));
+    } else {
+        QMessageBox::warning(this, tr("Info"), tr("Failed to save the decoded video file"));
+    }
+
     int index = codec_tabwidget_->currentIndex();
 
     switch (index) {

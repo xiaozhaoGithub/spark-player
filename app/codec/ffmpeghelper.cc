@@ -800,3 +800,110 @@ bool FFmpegHelper::SaveEncodeVideo(const AvInfo& info, const char* infile, const
 
     return true;
 }
+
+bool FFmpegHelper::ExportSingleStream(int media_type, const char* infile, const char* outfile)
+{
+    AVFormatContext* infmt_ctx = nullptr;
+    int ret = avformat_open_input(&infmt_ctx, infile, nullptr, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+    DEFER(avformat_close_input(&infmt_ctx););
+
+    // Fill stream info
+    ret = avformat_find_stream_info(infmt_ctx, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    ret = av_find_best_stream(infmt_ctx, static_cast<AVMediaType>(media_type), -1, -1, nullptr, 0);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    int dump_index = ret;
+
+    AVFormatContext* outfmt_ctx = nullptr;
+    ret = avformat_alloc_output_context2(&outfmt_ctx, nullptr, nullptr, outfile);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+    DEFER(avformat_free_context(outfmt_ctx);)
+
+    if (!(outfmt_ctx->oformat->flags & AVFMT_NOFILE)) {
+        ret = avio_open(&outfmt_ctx->pb, outfile, AVIO_FLAG_WRITE);
+        if (ret < 0) {
+            FFmpegError(ret);
+            return false;
+        }
+    }
+    DEFER(avio_closep(&outfmt_ctx->pb);)
+
+    // Copy stream params
+    AVStream* in_stream = infmt_ctx->streams[dump_index];
+    AVStream* out_stream = avformat_new_stream(outfmt_ctx, nullptr);
+    if (!out_stream) {
+        SPDLOG_ERROR("Failed to create out stream");
+        return false;
+    }
+
+    ret = avcodec_parameters_copy(out_stream->codecpar, in_stream->codecpar);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+    // Solve incompatible for codec
+    out_stream->codecpar->codec_tag = 0;
+
+    ret = avformat_write_header(outfmt_ctx, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    AVPacket* pkt = av_packet_alloc();
+    if (!pkt) {
+        SPDLOG_ERROR("Failed to alloc packet.");
+        return false;
+    }
+    DEFER(av_packet_free(&pkt);)
+
+    while (av_read_frame(infmt_ctx, pkt) == 0) {
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+            break;
+        } else if (ret < 0) {
+            FFmpegError(ret);
+            return false;
+        }
+
+        if (pkt->stream_index != dump_index) {
+            av_packet_unref(pkt);
+            continue;
+        }
+
+        av_packet_rescale_ts(pkt, in_stream->time_base, out_stream->time_base); // pts, dts, duration...
+        pkt->pos = -1;
+        pkt->stream_index = 0;
+
+        ret = av_interleaved_write_frame(outfmt_ctx, pkt);
+        if (ret < 0) {
+            FFmpegError(ret);
+            av_packet_unref(pkt);
+            break;
+        }
+
+        av_packet_unref(pkt);
+    }
+
+    ret = av_write_trailer(outfmt_ctx);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    return true;
+}

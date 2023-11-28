@@ -9,18 +9,18 @@
 #include "codec/ffmpeghelper.h"
 
 CodecAudioDialog::CodecAudioDialog(QWidget* parent)
-    : QDialog(parent)
+    : CustomDialog(parent)
 {
+    setWindowTitle(tr("Codec Audio"));
+
     file_edit_ = new QLineEdit(this);
-    file_edit_->setText("E:/WorkSpace/GithubCode/ffmpeg-player/build/app/Debug/breakout.pcm");
     file_edit_->setFixedWidth(360);
-    select_file_btn_ = new QPushButton(tr("Select"), this);
+    select_file_btn_ = new QPushButton(tr("..."), this);
     connect(select_file_btn_, &QPushButton::clicked, this, &CodecAudioDialog::SelectFileClicked);
 
     outfile_edit_ = new QLineEdit(this);
-    outfile_edit_->setText("E:/WorkSpace/GithubCode/ffmpeg-player/build/app/Debug/breakout.pcm");
     outfile_edit_->setFixedWidth(360);
-    select_outfile_btn_ = new QPushButton(tr("Select"), this);
+    select_outfile_btn_ = new QPushButton(tr("..."), this);
     connect(select_outfile_btn_, &QPushButton::clicked, this, &CodecAudioDialog::SelectFileClicked);
 
     auto mp3_btn = new QRadioButton("mp3", this);
@@ -55,11 +55,11 @@ CodecAudioDialog::CodecAudioDialog(QWidget* parent)
     bottom_layout->addWidget(decode_btn);
     bottom_layout->addWidget(cancel_btn);
 
-    auto mainLayout = new QVBoxLayout(this);
-    mainLayout->addLayout(file_layout);
-    mainLayout->addLayout(outfile_layout);
-    mainLayout->addLayout(audio_type_layout);
-    mainLayout->addLayout(bottom_layout);
+    auto main_layout = new QVBoxLayout(main_widget_);
+    main_layout->addLayout(file_layout);
+    main_layout->addLayout(outfile_layout);
+    main_layout->addLayout(audio_type_layout);
+    main_layout->addLayout(bottom_layout);
 }
 
 CodecAudioDialog::~CodecAudioDialog() {}

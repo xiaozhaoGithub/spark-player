@@ -63,6 +63,17 @@ public:
     static bool SaveDecodeVideo(const char* infile, const char* outfile);
     static bool SaveEncodeVideo(const AvInfo& info, const char* infile, const char* outfile);
 
+    /**
+     * @brief Dump single stream from the input media file.
+     *
+     * @param media_type video: 0 audio: 1 subtitle: 3
+     * @param infile input media file
+     * @param outfile output media file
+     *
+     * @return Success or failure
+     */
+    static bool ExportSingleStream(int media_type, const char* infile, const char* outfile);
+
 private:
     struct BufferData
     {

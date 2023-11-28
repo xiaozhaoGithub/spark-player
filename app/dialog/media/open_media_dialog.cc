@@ -8,14 +8,15 @@
 #include "common/def.h"
 
 OpenMediaDialog::OpenMediaDialog(QWidget* parent)
-    : QDialog(parent)
+    : ConfirmDialog(parent)
 {
+    setWindowTitle(tr("Open Media"));
+
     tabwidget_ = new QTabWidget(this);
 
     file_edit_ = new QLineEdit(this);
     file_edit_->setFixedWidth(360);
-    file_edit_->setText("E:\\WorkSpace\\GithubCode\\ffmpeg-player\\build\\app\\Debug\\test.mp4");
-    auto select_file_btn = new QPushButton(tr("Select"), this);
+    auto select_file_btn = new QPushButton(tr("..."), this);
     connect(select_file_btn, &QPushButton::clicked, this, &OpenMediaDialog::SelectFileClicked);
 
     url_edit_ = new QLineEdit(this);
@@ -31,12 +32,6 @@ OpenMediaDialog::OpenMediaDialog(QWidget* parent)
         capture_dev_combo_->addItem(camera.deviceName());
 #endif
     }
-
-    auto open_btn = new QPushButton(tr("Open"), this);
-    connect(open_btn, &QPushButton::clicked, this, &OpenMediaDialog::OpenClicked);
-
-    auto cancel_btn = new QPushButton(tr("Cancel"), this);
-    connect(cancel_btn, &QPushButton::clicked, this, &OpenMediaDialog::CancelClicked);
 
     // file
     auto file_layout = new QHBoxLayout;
@@ -61,18 +56,12 @@ OpenMediaDialog::OpenMediaDialog(QWidget* parent)
     capture_widget_layout->addWidget(capture_dev_combo_);
     capture_widget_layout->setAlignment(Qt::AlignCenter);
 
-    auto bottom_layout = new QHBoxLayout;
-    bottom_layout->addStretch();
-    bottom_layout->addWidget(open_btn);
-    bottom_layout->addWidget(cancel_btn);
-
     tabwidget_->insertTab(kFile, file_widget, tr("File Source"));
     tabwidget_->insertTab(kNetwork, network_widget, tr("Network Source"));
     tabwidget_->insertTab(kCapture, capture_widget, tr("Capture Source"));
 
-    auto mainLayout = new QVBoxLayout(this);
-    mainLayout->addWidget(tabwidget_);
-    mainLayout->addLayout(bottom_layout);
+    auto main_layout = new QVBoxLayout(main_widget_);
+    main_layout->addWidget(tabwidget_);
 }
 
 OpenMediaDialog::~OpenMediaDialog() {}
@@ -104,14 +93,4 @@ void OpenMediaDialog::SelectFileClicked()
         file_edit_->setText(files.at(0));
         file_edit_->setToolTip(files.at(0));
     }
-}
-
-void OpenMediaDialog::OpenClicked()
-{
-    accept();
-}
-
-void OpenMediaDialog::CancelClicked()
-{
-    reject();
 }

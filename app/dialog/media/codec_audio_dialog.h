@@ -7,16 +7,15 @@
 #include <QTabWidget>
 
 #include "common/media_info.h"
+#include "dialog/base/custom_dialog.h"
 
-class CodecAudioDialog : public QDialog
+class CodecAudioDialog : public CustomDialog
 {
     Q_OBJECT
 
 public:
     explicit CodecAudioDialog(QWidget* parent = nullptr);
     ~CodecAudioDialog();
-
-    MediaInfo media();
 
 private slots:
     void SelectFileClicked();
