@@ -10,6 +10,7 @@
 
 #include "common/media_info.h"
 #include "dialog/base/custom_dialog.h"
+#include "widget/common/widgets.h"
 
 class CodecVideoDialog : public ConfirmDialog
 {
@@ -35,15 +36,12 @@ private:
 
 
 private slots:
-    void SelectFileClicked();
     void OkClicked() override;
     void CancelClicked() override;
 
 private:
-    QLineEdit* file_edit_;
-    QLineEdit* outfile_edit_;
-    QPushButton* select_file_btn_;
-    QPushButton* select_outfile_btn_;
+    FolderLineEdit* infile_edit_;
+    FolderLineEdit* outfile_edit_;
 
     QTabWidget* codec_tabwidget_;
 

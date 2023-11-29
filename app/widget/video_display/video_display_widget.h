@@ -16,6 +16,7 @@ extern "C"
 
 #include "render/opengl/video_surface_gl.h"
 #include "render/qpainter/video_player_widget.h"
+#include "widget/common/widgets.h"
 
 class VideoDisplayWidget : public QWidget
 {
@@ -41,7 +42,7 @@ private:
     // VideoPlayerWidget* player_;
     VideoSurfaceGL* player_;
 
-    QLineEdit* file_edit_;
+    FolderLineEdit* file_edit_;
     QPushButton* play_btn_;
     QPushButton* pause_btn_;
     QStackedWidget* play_stop_widget_;

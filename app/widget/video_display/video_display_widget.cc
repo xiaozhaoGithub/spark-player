@@ -15,11 +15,9 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
 {
     setMinimumSize(1024, 768);
 
-    file_edit_ = new QLineEdit(this);
-    file_edit_->setEnabled(false);
-    file_edit_->setFixedWidth(360);
-    auto select_file_btn = new QPushButton(tr("..."), this);
-    connect(select_file_btn, &QPushButton::clicked, this, &VideoDisplayWidget::SelectMediaClicked);
+    file_edit_ = new FolderLineEdit(this);
+    file_edit_->setReadOnly(true);
+    file_edit_->set_select_file_handle(std::bind(&VideoDisplayWidget::SelectMediaClicked, this));
 
     // player_ = new VideoPlayerWidget(this);
     // connect(player_, &VideoPlayerWidget::PlayState, this, &VideoDisplayWidget::PlayState);
@@ -79,7 +77,6 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
 
     auto btn_layout = new QHBoxLayout;
     btn_layout->addWidget(file_edit_);
-    btn_layout->addWidget(select_file_btn);
     btn_layout->addStretch(9);
     btn_layout->addWidget(software_dc);
     btn_layout->addWidget(hardware_dc);
@@ -146,6 +143,7 @@ void VideoDisplayWidget::SelectMediaClicked()
         if (code == QDialog::Accepted) {
             media_ = dlg->media();
             file_edit_->setText(QString::fromStdString(media_.src));
+            file_edit_->setToolTip(QString::fromStdString(media_.src));
         }
     });
 

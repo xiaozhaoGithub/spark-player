@@ -7,6 +7,7 @@
 #include <QRadioButton>
 
 #include "dialog/base/custom_dialog.h"
+#include "widget/common/widgets.h"
 
 class ExportStreamDialog : public ConfirmDialog
 {
@@ -22,9 +23,7 @@ private slots:
     void CancelClicked() override;
 
 private:
-    QLineEdit* file_edit_;
-    QPushButton* select_file_btn_;
-
+    FolderLineEdit* file_edit_;
     QButtonGroup* btn_group_;
 };
 

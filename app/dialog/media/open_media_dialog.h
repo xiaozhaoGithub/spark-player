@@ -8,6 +8,7 @@
 
 #include "common/media_info.h"
 #include "dialog/base/custom_dialog.h"
+#include "widget/common/widgets.h"
 
 class OpenMediaDialog : public ConfirmDialog
 {
@@ -19,12 +20,10 @@ public:
 
     MediaInfo media();
 
-private slots:
-    void SelectFileClicked();
-
 private:
     QTabWidget* tabwidget_;
-    QLineEdit* file_edit_;
+
+    FolderLineEdit* file_edit_;
     QLineEdit* url_edit_;
     QComboBox* capture_dev_combo_;
 };

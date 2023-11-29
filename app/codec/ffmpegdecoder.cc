@@ -331,7 +331,7 @@ bool FFmpegDecoder::InitInputFmtParams(std::string& url, AVInputFormat** fmt)
         break;
     }
     default:
-        SPDLOG_ERROR("Failed to open this media type {0}.", media_->type);
+        SPDLOG_ERROR("Failed to open this media type {0}.", (int)media_->type);
         return false;
     }
 

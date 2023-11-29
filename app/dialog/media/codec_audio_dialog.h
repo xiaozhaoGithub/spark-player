@@ -8,6 +8,7 @@
 
 #include "common/media_info.h"
 #include "dialog/base/custom_dialog.h"
+#include "widget/common/widgets.h"
 
 class CodecAudioDialog : public CustomDialog
 {
@@ -18,16 +19,13 @@ public:
     ~CodecAudioDialog();
 
 private slots:
-    void SelectFileClicked();
     void DecodeClicked();
     void EncodeClicked();
     void CancelClicked();
 
 private:
-    QLineEdit* file_edit_;
-    QLineEdit* outfile_edit_;
-    QPushButton* select_file_btn_;
-    QPushButton* select_outfile_btn_;
+    FolderLineEdit* infile_edit_;
+    FolderLineEdit* outfile_edit_;
 };
 
 #endif

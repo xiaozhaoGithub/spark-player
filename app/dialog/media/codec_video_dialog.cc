@@ -16,15 +16,8 @@ CodecVideoDialog::CodecVideoDialog(QWidget* parent)
 {
     setWindowTitle(tr("Codec Video"));
 
-    file_edit_ = new QLineEdit(this);
-    file_edit_->setFixedWidth(360);
-    select_file_btn_ = new QPushButton(tr("..."), this);
-    connect(select_file_btn_, &QPushButton::clicked, this, &CodecVideoDialog::SelectFileClicked);
-
-    outfile_edit_ = new QLineEdit(this);
-    outfile_edit_->setFixedWidth(360);
-    select_outfile_btn_ = new QPushButton(tr("..."), this);
-    connect(select_outfile_btn_, &QPushButton::clicked, this, &CodecVideoDialog::SelectFileClicked);
+    infile_edit_ = new FolderLineEdit(this);
+    outfile_edit_ = new FolderLineEdit(this);
 
     // normal
     auto normal_title = new QLabel(tr("Normal"), this);
@@ -86,16 +79,6 @@ CodecVideoDialog::CodecVideoDialog(QWidget* parent)
     codec_tabwidget_->insertTab(kEncode, encoder_widget, tr("Encode"));
     codec_tabwidget_->insertTab(kTranscode, transcode_widget, tr("Transcode"));
 
-    auto file_layout = new QHBoxLayout;
-    file_layout->addWidget(file_edit_);
-    file_layout->addWidget(select_file_btn_);
-    file_layout->setAlignment(Qt::AlignCenter);
-
-    auto outfile_layout = new QHBoxLayout;
-    outfile_layout->addWidget(outfile_edit_);
-    outfile_layout->addWidget(select_outfile_btn_);
-    outfile_layout->setAlignment(Qt::AlignCenter);
-
     auto param_layout = new QVBoxLayout(encoder_widget);
     param_layout->addWidget(normal_title);
     param_layout->addLayout(normal_grid_layout);
@@ -110,28 +93,12 @@ CodecVideoDialog::CodecVideoDialog(QWidget* parent)
     transcode_layout->addStretch();
 
     auto main_layout = new QVBoxLayout(main_widget_);
-    main_layout->addLayout(file_layout);
-    main_layout->addLayout(outfile_layout);
+    main_layout->addWidget(infile_edit_);
+    main_layout->addWidget(outfile_edit_);
     main_layout->addWidget(codec_tabwidget_);
 }
 
 CodecVideoDialog::~CodecVideoDialog() {}
-
-void CodecVideoDialog::SelectFileClicked()
-{
-    QFileDialog dlg;
-    int ret = dlg.exec();
-    if (ret == QDialog::Accepted) {
-        auto files = dlg.selectedFiles();
-        if (sender() == select_file_btn_) {
-            file_edit_->setText(files.at(0));
-            file_edit_->setToolTip(files.at(0));
-        } else {
-            outfile_edit_->setText(files.at(0));
-            outfile_edit_->setToolTip(files.at(0));
-        }
-    }
-}
 
 void CodecVideoDialog::Encode()
 {
@@ -144,7 +111,7 @@ void CodecVideoDialog::Encode()
     info.gop_size = gop_size_edit_->text().toInt();
     info.max_b_frames = max_b_frames_edit_->text().toInt();
 
-    bool ret = FFmpegHelper::SaveEncodeVideo(info, file_edit_->text().toStdString().data(),
+    bool ret = FFmpegHelper::SaveEncodeVideo(info, infile_edit_->text().toStdString().data(),
                                              outfile_edit_->text().toStdString().data());
 
     if (ret) {
@@ -176,7 +143,7 @@ void CodecVideoDialog::Transcode()
     info.start_time = start_time_edit_->time().msecsSinceStartOfDay() / 1000;
     info.end_time = end_time_edit_->time().msecsSinceStartOfDay() / 1000;
 
-    bool ret = FFmpegHelper::SaveTranscodeFormat(info, file_edit_->text().toStdString().data(),
+    bool ret = FFmpegHelper::SaveTranscodeFormat(info, infile_edit_->text().toStdString().data(),
                                                  outfile_edit_->text().toStdString().data());
 
     if (ret) {
@@ -188,7 +155,7 @@ void CodecVideoDialog::Transcode()
 
 void CodecVideoDialog::Decode()
 {
-    bool ret = FFmpegHelper::SaveDecodeVideo(file_edit_->text().toStdString().data(),
+    bool ret = FFmpegHelper::SaveDecodeVideo(infile_edit_->text().toStdString().data(),
                                              outfile_edit_->text().toStdString().data());
 
     if (ret) {
@@ -202,7 +169,7 @@ void CodecVideoDialog::Decode()
 void CodecVideoDialog::OkClicked()
 {
 
-    bool ret = FFmpegHelper::ExportSingleStream(0, file_edit_->text().toStdString().data(),
+    bool ret = FFmpegHelper::ExportSingleStream(0, infile_edit_->text().toStdString().data(),
                                                 outfile_edit_->text().toStdString().data());
 
     if (ret) {

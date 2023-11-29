@@ -14,10 +14,7 @@ OpenMediaDialog::OpenMediaDialog(QWidget* parent)
 
     tabwidget_ = new QTabWidget(this);
 
-    file_edit_ = new QLineEdit(this);
-    file_edit_->setFixedWidth(360);
-    auto select_file_btn = new QPushButton(tr("..."), this);
-    connect(select_file_btn, &QPushButton::clicked, this, &OpenMediaDialog::SelectFileClicked);
+    file_edit_ = new FolderLineEdit(this);
 
     url_edit_ = new QLineEdit(this);
     url_edit_->setFixedWidth(360);
@@ -34,14 +31,9 @@ OpenMediaDialog::OpenMediaDialog(QWidget* parent)
     }
 
     // file
-    auto file_layout = new QHBoxLayout;
-    file_layout->addWidget(file_edit_);
-    file_layout->addWidget(select_file_btn);
-    file_layout->setAlignment(Qt::AlignCenter);
-
     auto file_widget = new QWidget(this);
     auto file_widget_layout = new QVBoxLayout(file_widget);
-    file_widget_layout->addLayout(file_layout);
+    file_widget_layout->addWidget(file_edit_);
     file_widget_layout->setAlignment(Qt::AlignCenter);
 
     // network
@@ -82,15 +74,4 @@ MediaInfo OpenMediaDialog::media()
     }
 
     return media;
-}
-
-void OpenMediaDialog::SelectFileClicked()
-{
-    QFileDialog dlg;
-    int ret = dlg.exec();
-    if (ret == QDialog::Accepted) {
-        auto files = dlg.selectedFiles();
-        file_edit_->setText(files.at(0));
-        file_edit_->setToolTip(files.at(0));
-    }
 }

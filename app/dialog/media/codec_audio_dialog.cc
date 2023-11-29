@@ -13,15 +13,8 @@ CodecAudioDialog::CodecAudioDialog(QWidget* parent)
 {
     setWindowTitle(tr("Codec Audio"));
 
-    file_edit_ = new QLineEdit(this);
-    file_edit_->setFixedWidth(360);
-    select_file_btn_ = new QPushButton(tr("..."), this);
-    connect(select_file_btn_, &QPushButton::clicked, this, &CodecAudioDialog::SelectFileClicked);
-
-    outfile_edit_ = new QLineEdit(this);
-    outfile_edit_->setFixedWidth(360);
-    select_outfile_btn_ = new QPushButton(tr("..."), this);
-    connect(select_outfile_btn_, &QPushButton::clicked, this, &CodecAudioDialog::SelectFileClicked);
+    infile_edit_ = new FolderLineEdit(this);
+    outfile_edit_ = new FolderLineEdit(this);
 
     auto mp3_btn = new QRadioButton("mp3", this);
     mp3_btn->setChecked(true);
@@ -35,16 +28,6 @@ CodecAudioDialog::CodecAudioDialog(QWidget* parent)
     auto cancel_btn = new QPushButton(tr("Cancel"), this);
     connect(cancel_btn, &QPushButton::clicked, this, &CodecAudioDialog::CancelClicked);
 
-    auto file_layout = new QHBoxLayout;
-    file_layout->addWidget(file_edit_);
-    file_layout->addWidget(select_file_btn_);
-    file_layout->setAlignment(Qt::AlignCenter);
-
-    auto outfile_layout = new QHBoxLayout;
-    outfile_layout->addWidget(outfile_edit_);
-    outfile_layout->addWidget(select_outfile_btn_);
-    outfile_layout->setAlignment(Qt::AlignCenter);
-
     auto audio_type_layout = new QHBoxLayout;
     audio_type_layout->addWidget(mp3_btn);
     audio_type_layout->addStretch();
@@ -56,33 +39,17 @@ CodecAudioDialog::CodecAudioDialog(QWidget* parent)
     bottom_layout->addWidget(cancel_btn);
 
     auto main_layout = new QVBoxLayout(main_widget_);
-    main_layout->addLayout(file_layout);
-    main_layout->addLayout(outfile_layout);
+    main_layout->addWidget(infile_edit_);
+    main_layout->addWidget(outfile_edit_);
     main_layout->addLayout(audio_type_layout);
     main_layout->addLayout(bottom_layout);
 }
 
 CodecAudioDialog::~CodecAudioDialog() {}
 
-void CodecAudioDialog::SelectFileClicked()
-{
-    QFileDialog dlg;
-    int ret = dlg.exec();
-    if (ret == QDialog::Accepted) {
-        auto files = dlg.selectedFiles();
-        if (sender() == select_file_btn_) {
-            file_edit_->setText(files.at(0));
-            file_edit_->setToolTip(files.at(0));
-        } else {
-            outfile_edit_->setText(files.at(0));
-            outfile_edit_->setToolTip(files.at(0));
-        }
-    }
-}
-
 void CodecAudioDialog::EncodeClicked()
 {
-    bool ret = FFmpegHelper::SaveEncodeAudio(file_edit_->text().toStdString().data(),
+    bool ret = FFmpegHelper::SaveEncodeAudio(infile_edit_->text().toStdString().data(),
                                              outfile_edit_->text().toStdString().data());
 
     if (ret) {
@@ -95,7 +62,7 @@ void CodecAudioDialog::EncodeClicked()
 
 void CodecAudioDialog::DecodeClicked()
 {
-    bool ret = FFmpegHelper::SaveDecodeAudio(file_edit_->text().toStdString().data(),
+    bool ret = FFmpegHelper::SaveDecodeAudio(infile_edit_->text().toStdString().data(),
                                              outfile_edit_->text().toStdString().data());
 
     if (ret) {

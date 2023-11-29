@@ -10,12 +10,7 @@ ExportStreamDialog::ExportStreamDialog(QWidget* parent)
 {
     setWindowTitle(tr("Export Stream"));
 
-    file_edit_ = new QLineEdit(this);
-    file_edit_->setFixedWidth(360);
-    file_edit_->setText("");
-
-    select_file_btn_ = new QPushButton(tr("..."), this);
-    connect(select_file_btn_, &QPushButton::clicked, this, &ExportStreamDialog::SelectFileClicked);
+    file_edit_ = new FolderLineEdit(this);
 
     btn_group_ = new QButtonGroup(this);
     auto video_btn = new QRadioButton(tr("video"), this);
@@ -27,10 +22,6 @@ ExportStreamDialog::ExportStreamDialog(QWidget* parent)
 
     video_btn->setChecked(true);
 
-    auto outfile_layout = new QHBoxLayout;
-    outfile_layout->addWidget(file_edit_);
-    outfile_layout->addWidget(select_file_btn_);
-
     auto stream_type_layout = new QHBoxLayout;
     stream_type_layout->addWidget(video_btn);
     stream_type_layout->addWidget(audio_btn);
@@ -38,7 +29,7 @@ ExportStreamDialog::ExportStreamDialog(QWidget* parent)
     stream_type_layout->addStretch();
 
     auto main_layout = new QVBoxLayout(main_widget_);
-    main_layout->addLayout(outfile_layout);
+    main_layout->addWidget(file_edit_);
     main_layout->addLayout(stream_type_layout);
 }
 
