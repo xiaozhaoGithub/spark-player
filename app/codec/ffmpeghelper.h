@@ -14,7 +14,7 @@ using Function = std::function<void()>;
 class Defer
 {
 public:
-    Defer(Function&& fn)
+    explicit Defer(Function&& fn)
         : _fn(std::move(fn))
     {}
     ~Defer()

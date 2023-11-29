@@ -27,7 +27,8 @@ public:
     void Close();
 
 private:
-    void FFmpegError(int error_code);
+    static void FFmpegError(int error_code);
+
     bool AllocResource();
     void FreeResource();
 

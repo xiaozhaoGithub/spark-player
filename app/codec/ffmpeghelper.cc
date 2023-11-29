@@ -22,24 +22,26 @@ void FFmpegHelper::FFmpegError(int code)
     SPDLOG_ERROR("Error code: {0} desc: {1}", code, error_buf);
 }
 
-int FFmpegHelper::read_packet(void* opaque, uint8_t* buf, int buffer_size)
+int FFmpegHelper::read_packet(void* opaque, uint8_t* buf, int buf_size)
 {
     BufferData* buf_data = static_cast<BufferData*>(opaque);
-    int read_size = FFMIN(buffer_size, buf_data->size);
+    int read_size = static_cast<int>(FFMIN(buf_size, buf_data->size));
 
-    if (read_size <= 0) {
-        SPDLOG_INFO("read done, ptr: {0}, size: {1}", (void*)buf_data->ptr, buf_data->size);
+    if (read_size == 0) {
+        SPDLOG_INFO("read done, ptr: {0}, size: {1}", static_cast<void*>(buf_data->ptr),
+                    buf_data->size);
         return AVERROR_EOF;
     }
 
-    SPDLOG_INFO("ptr: {0}, size: {1}", (void*)buf_data->ptr, buf_data->size);
+    SPDLOG_INFO("ptr: {0}, size: {1}", static_cast<void*>(buf_data->ptr), buf_data->size);
 
     memcpy(buf, buf_data->ptr, read_size);
     buf_data->ptr += read_size;
     buf_data->size -= read_size;
 
     if (buf_data->size == 0) {
-        SPDLOG_INFO("read done, ptr: {0}, size: {1}", (void*)buf_data->ptr, buf_data->size);
+        SPDLOG_INFO("read done, ptr: {0}, size: {1}", static_cast<void*>(buf_data->ptr),
+                    buf_data->size);
     }
 
     return read_size;
@@ -95,7 +97,7 @@ int FFmpegHelper::EncodeAudio(AVCodecContext* codec_ctx, AVFrame* frame, AVPacke
             return ret;
         }
 
-        ret = fwrite(pkt->data, 1, pkt->size, outfile_fp);
+        ret = (int)fwrite(pkt->data, 1, pkt->size, outfile_fp);
 
         av_packet_unref(pkt);
     }
@@ -193,7 +195,7 @@ bool FFmpegHelper::ReadMediaByAvio(const char* filename)
     }
 
     int avio_ctx_buf_size = 4096;
-    uint8_t* avio_ctx_buf = (uint8_t*)av_malloc(avio_ctx_buf_size);
+    uint8_t* avio_ctx_buf = static_cast<uint8_t*>(av_malloc(avio_ctx_buf_size));
 
     BufferData buf_data;
     buf_data.ptr = buf;
@@ -249,7 +251,7 @@ bool FFmpegHelper::SaveTranscodeFormat(const AvInfo& info, const char* infile, c
     DEFER(avformat_free_context(outfmt_ctx);)
 
     // Copy all streams.(If you want, you can only operate part of the stream.)
-    for (int i = 0; i < infmt_ctx->nb_streams; ++i) {
+    for (uint32_t i = 0; i < infmt_ctx->nb_streams; ++i) {
         AVStream* in_stream = infmt_ctx->streams[i];
         AVStream* out_stream = avformat_new_stream(outfmt_ctx, nullptr);
         if (!out_stream) {
@@ -453,11 +455,12 @@ bool FFmpegHelper::SaveDecodeAudio(const char* infile, const char* outfile)
     size_t data_size = fread(inbuf, 1, AUDIO_INBUF_SIZE, infile_fp);
     while (data_size > 0) {
         int outbuf_size = 0;
-        int used_size = av_parser_parse2(parser_ctx, codec_ctx, &pkt->data, &pkt->size, data_buf,
-                                         data_size, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+        int used_size =
+            av_parser_parse2(parser_ctx, codec_ctx, &pkt->data, &pkt->size, data_buf,
+                             static_cast<int>(data_size), AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
         if (used_size < 0) {
-            return false;
             SPDLOG_ERROR("Error while parsing.");
+            return false;
         }
 
         data_buf += used_size;
@@ -574,7 +577,7 @@ bool FFmpegHelper::SaveEncodeAudio(const char* infile, const char* outfile)
 
     while (true) {
         size_t read_byte = fread(frame->data[0], 1, frame->linesize[0], infile_fp);
-        if (read_byte <= 0) {
+        if (read_byte == 0) {
             if (feof(infile_fp)) {
                 SPDLOG_INFO("Data reading complete.");
             } else if (ferror(infile_fp)) {
@@ -767,8 +770,8 @@ bool FFmpegHelper::SaveEncodeVideo(const AvInfo& info, const char* infile, const
 
     // Malloc image buffer
     // yuv420p: w * h * 3/2
-    uint8_t* frame_buffer = (uint8_t*)av_malloc(
-        av_image_get_buffer_size(codec_ctx->pix_fmt, codec_ctx->width, codec_ctx->height, 1));
+    uint8_t* frame_buffer = static_cast<uint8_t*>(av_malloc(
+        av_image_get_buffer_size(codec_ctx->pix_fmt, codec_ctx->width, codec_ctx->height, 1)));
     DEFER(av_freep(&frame_buffer);)
 
     // Fill data and linesize

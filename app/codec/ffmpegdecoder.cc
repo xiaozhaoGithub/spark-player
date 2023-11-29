@@ -174,8 +174,7 @@ AVFrame* FFmpegDecoder::GetFrame()
             packet_->pts = qRound64(packet_->pts * (1000 * av_q2d(stream_->time_base)));
             packet_->dts = qRound64(packet_->dts * (1000 * av_q2d(stream_->time_base)));
 
-            int ret = avcodec_send_packet(codec_ctx_, packet_);
-            if (ret != 0) {
+            if (avcodec_send_packet(codec_ctx_, packet_) != 0) {
                 FFmpegError(ret);
             }
         }
@@ -200,10 +199,10 @@ AVFrame* FFmpegDecoder::GetFrame()
     AVFrame* tmp_frame = frame_;
     if (!frame_->data[0]) {
         tmp_frame = hw_frame_;
-        bool ret = GpuDataToCpu();
+        bool success = GpuDataToCpu();
         av_frame_unref(frame_);
 
-        if (!ret) {
+        if (!success) {
             return nullptr;
         }
     }
@@ -380,7 +379,7 @@ void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
 
 bool FFmpegDecoder::GpuDataToCpu()
 {
-    AVPixelFormat* format = static_cast<AVPixelFormat*>(codec_ctx_->opaque);
+    const AVPixelFormat* format = static_cast<const AVPixelFormat*>(codec_ctx_->opaque);
     if (frame_->format != *format) {
         return false;
     }
@@ -403,7 +402,7 @@ bool FFmpegDecoder::GpuDataToCpu()
 
 AVPixelFormat FFmpegDecoder::get_hw_format(AVCodecContext* ctx, const AVPixelFormat* fmt)
 {
-    AVPixelFormat* pix_fmt = static_cast<AVPixelFormat*>(ctx->opaque);
+    const AVPixelFormat* pix_fmt = static_cast<const AVPixelFormat*>(ctx->opaque);
 
     for (auto p = fmt; *p != -1; p++) {
         if (*p == *pix_fmt) {

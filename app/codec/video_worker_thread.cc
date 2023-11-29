@@ -6,6 +6,7 @@
 
 VideoWorkerThread::VideoWorkerThread(QObject* parent)
     : QThread(parent)
+    , playstate_(kStop)
 {
     decoder_ = new FFmpegDecoder(this);
     writer_ = std::make_unique<FFmpegWriter>();

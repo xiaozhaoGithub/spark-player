@@ -51,7 +51,7 @@ quint32 Config::GetConfigFileDir(char* filename, quint32 size)
     char system_path[128] = {0};
     GetSystemDirectoryA(system_path, 128);
 
-    char* pos = strchr(system_path, '\\');
+    const char* pos = strchr(system_path, '\\');
     system_path[pos - system_path] = '\0';
     strcat(system_path, "\\ProgramData\\ffmpeg-player\\");
 

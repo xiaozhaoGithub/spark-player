@@ -10,7 +10,7 @@
 class OpenGLRenderer : protected QOpenGLFunctions_3_3_Core
 {
 public:
-    OpenGLRenderer(const std::shared_ptr<QOpenGLShaderProgram>& shader_program);
+    explicit OpenGLRenderer(const std::shared_ptr<QOpenGLShaderProgram>& shader_program);
     ~OpenGLRenderer();
 
     void SetSize(const QVector2D& size);

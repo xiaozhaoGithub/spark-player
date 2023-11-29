@@ -54,7 +54,6 @@ private:
 
     QByteArray filename_;
     VideoPlayState playstate_;
-    bool soft_decode_;
 };
 
 inline VideoWorkerThread::VideoPlayState VideoWorkerThread::playstate()
