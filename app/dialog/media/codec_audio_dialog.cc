@@ -28,10 +28,6 @@ CodecAudioDialog::CodecAudioDialog(QWidget* parent)
     auto cancel_btn = new QPushButton(tr("Cancel"), this);
     connect(cancel_btn, &QPushButton::clicked, this, &CodecAudioDialog::CancelClicked);
 
-    auto audio_type_layout = new QHBoxLayout;
-    audio_type_layout->addWidget(mp3_btn);
-    audio_type_layout->addStretch();
-
     auto bottom_layout = new QHBoxLayout;
     bottom_layout->addStretch();
     bottom_layout->addWidget(encode_btn);
@@ -41,7 +37,6 @@ CodecAudioDialog::CodecAudioDialog(QWidget* parent)
     auto main_layout = new QVBoxLayout(main_widget_);
     main_layout->addWidget(infile_edit_);
     main_layout->addWidget(outfile_edit_);
-    main_layout->addLayout(audio_type_layout);
     main_layout->addLayout(bottom_layout);
 }
 
@@ -51,10 +46,8 @@ void CodecAudioDialog::EncodeClicked()
 {
     bool ret = FFmpegHelper::SaveEncodeAudio(infile_edit_->text().toStdString().data(),
                                              outfile_edit_->text().toStdString().data());
-
     if (ret) {
         QMessageBox::information(this, tr("Info"), tr("Successfully save the encoded audio file"));
-        accept();
     } else {
         QMessageBox::warning(this, tr("Info"), tr("Failed to save the encoded audio file"));
     }
@@ -64,15 +57,11 @@ void CodecAudioDialog::DecodeClicked()
 {
     bool ret = FFmpegHelper::SaveDecodeAudio(infile_edit_->text().toStdString().data(),
                                              outfile_edit_->text().toStdString().data());
-
     if (ret) {
         QMessageBox::information(this, tr("Info"), tr("Successfully save the decoded audio file"));
-        accept();
     } else {
         QMessageBox::warning(this, tr("Info"), tr("Failed to save the decoded audio file"));
     }
-
-    accept();
 }
 
 

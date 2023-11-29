@@ -72,6 +72,9 @@ void FFmpegHelper::DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame
             return;
         }
 
+        // Stored as packed
+        // L L L L  -> L R L R
+        // R R R R  -> L R L R
         for (int i = 0; i < frame->nb_samples; ++i) {
             for (int ch = 0; ch < codec_ctx->channels; ++ch) {
                 fwrite(frame->data[ch] + i * data_size, 1, data_size, outfile_fp);
@@ -393,9 +396,31 @@ bool FFmpegHelper::SaveDecodeAudio(const char* infile, const char* outfile)
     if (!infile || *infile == '\0' || !outfile || *outfile == '\0')
         return false;
 
-    AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_MP3);
+    AVFormatContext* infmt_ctx = nullptr;
+    int ret = avformat_open_input(&infmt_ctx, infile, nullptr, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    ret = avformat_find_stream_info(infmt_ctx, nullptr);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    ret = av_find_best_stream(infmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    AVCodecID codec_id = infmt_ctx->streams[ret]->codecpar->codec_id;
+    avformat_close_input(&infmt_ctx);
+
+    AVCodec* codec = avcodec_find_decoder(codec_id);
     if (!codec) {
-        SPDLOG_ERROR("Failed to find Codec.");
+        SPDLOG_ERROR("Failed to find Codec {0}.", static_cast<int>(codec_id));
         return false;
     }
 
@@ -413,7 +438,7 @@ bool FFmpegHelper::SaveDecodeAudio(const char* infile, const char* outfile)
     }
     DEFER(av_parser_close(parser_ctx);)
 
-    int ret = avcodec_open2(codec_ctx, codec, nullptr);
+    ret = avcodec_open2(codec_ctx, codec, nullptr);
     if (ret < 0) {
         FFmpegError(ret);
         return false;
@@ -454,7 +479,7 @@ bool FFmpegHelper::SaveDecodeAudio(const char* infile, const char* outfile)
 
     size_t data_size = fread(inbuf, 1, AUDIO_INBUF_SIZE, infile_fp);
     while (data_size > 0) {
-        int outbuf_size = 0;
+        // Parse a packet from buffer.
         int used_size =
             av_parser_parse2(parser_ctx, codec_ctx, &pkt->data, &pkt->size, data_buf,
                              static_cast<int>(data_size), AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
