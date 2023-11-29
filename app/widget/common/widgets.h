@@ -31,7 +31,7 @@ public:
 
     void AddRightWidget(QWidget* widget);
 
-    IconButton* CreateStandardIcon(QStyle::StandardPixmap standardIcon);
+    IconButton* CreateStandardIcon(QStyle::StandardPixmap icon);
 
 private:
     void AdjustPadding();

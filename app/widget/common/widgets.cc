@@ -15,6 +15,8 @@ IconButton::IconButton(const QIcon& icon, QWidget* parent)
 
 void IconButton::mousePressEvent(QMouseEvent* ev)
 {
+    QLabel::mousePressEvent(ev);
+
     emit clicked();
 }
 
@@ -37,12 +39,9 @@ void ComboLineEdit::AddRightWidget(QWidget* widget)
     right_layout_->addSpacing(spacing_);
 }
 
-IconButton* ComboLineEdit::CreateStandardIcon(QStyle::StandardPixmap standardIcon)
+IconButton* ComboLineEdit::CreateStandardIcon(QStyle::StandardPixmap icon)
 {
-    auto icon = style()->standardIcon(standardIcon);
-    auto btn = new IconButton(icon, this);
-
-    int w = right_layout_->sizeHint().width();
+    auto btn = new IconButton(style()->standardIcon(icon), this);
 
     AddRightWidget(btn);
     AdjustPadding();
