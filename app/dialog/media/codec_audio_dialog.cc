@@ -7,65 +7,104 @@
 #include <QVBoxLayout>
 
 #include "codec/ffmpeghelper.h"
+#include "widget/common/uihelper.h"
 
 CodecAudioDialog::CodecAudioDialog(QWidget* parent)
-    : CustomDialog(parent)
+    : ConfirmDialog(parent)
 {
     setWindowTitle(tr("Codec Audio"));
 
     infile_edit_ = new FolderLineEdit(this);
     outfile_edit_ = new FolderLineEdit(this);
 
-    auto mp3_btn = new QRadioButton("mp3", this);
-    mp3_btn->setChecked(true);
+    // normal
+    auto normal_title = new QLabel(tr("Normal"), this);
+    sample_rate_edit_ = new QLineEdit(this);
+    bit_rate_edit_ = new QLineEdit(this);
 
-    auto encode_btn = new QPushButton(tr("Encode"), this);
-    connect(encode_btn, &QPushButton::clicked, this, &CodecAudioDialog::EncodeClicked);
+    channel_combo_ = new QComboBox(this);
+    channel_combo_->addItem(tr("mono"), 1);
+    channel_combo_->addItem(tr("stereo"), 2);
+    channel_combo_->addItem(tr("surround"), 3);
 
-    auto decode_btn = new QPushButton(tr("Decode"), this);
-    connect(decode_btn, &QPushButton::clicked, this, &CodecAudioDialog::DecodeClicked);
+    QList<QPair<QWidget*, QWidget*>> widget_pair_list;
+    widget_pair_list.append(qMakePair(new QLabel(tr("Sample Rate:")), sample_rate_edit_));
+    widget_pair_list.append(qMakePair(new QLabel(tr("Bit Rate:")), bit_rate_edit_));
+    widget_pair_list.append(qMakePair(new QLabel(tr("Channel:")), channel_combo_));
+    auto normal_layout = uihelper::InitDialogGridLayout(widget_pair_list);
 
-    auto cancel_btn = new QPushButton(tr("Cancel"), this);
-    connect(cancel_btn, &QPushButton::clicked, this, &CodecAudioDialog::CancelClicked);
+    // codec
+    auto codec_title = new QLabel(tr("Codec"), this);
+    codec_combo_ = new QComboBox(this);
+    codec_combo_->addItem(tr("mp3"), 0);
+    codec_combo_->addItem(tr("aac"), 1);
 
-    auto bottom_layout = new QHBoxLayout;
-    bottom_layout->addStretch();
-    bottom_layout->addWidget(encode_btn);
-    bottom_layout->addWidget(decode_btn);
-    bottom_layout->addWidget(cancel_btn);
+    widget_pair_list.clear();
+    widget_pair_list.append(qMakePair(new QLabel(tr("Codec:")), codec_combo_));
+    auto codec_layout = uihelper::InitDialogGridLayout(widget_pair_list);
+
+    codec_tabwidget_ = new QTabWidget(this);
+    auto encoder_widget = new QWidget(codec_tabwidget_);
+
+    codec_tabwidget_->insertTab(kDecode, new QWidget(codec_tabwidget_), tr("Decode"));
+    codec_tabwidget_->insertTab(kEncode, encoder_widget, tr("Encode"));
+
+    auto encode_layout = new QVBoxLayout(encoder_widget);
+    encode_layout->addWidget(normal_title);
+    encode_layout->addLayout(normal_layout);
+    encode_layout->addWidget(codec_title);
+    encode_layout->addLayout(codec_layout);
+    encode_layout->setAlignment(normal_title, Qt::AlignLeft);
+    encode_layout->setAlignment(codec_title, Qt::AlignLeft);
 
     auto main_layout = new QVBoxLayout(main_widget_);
     main_layout->addWidget(infile_edit_);
     main_layout->addWidget(outfile_edit_);
-    main_layout->addLayout(bottom_layout);
+    main_layout->addWidget(codec_tabwidget_);
 }
 
 CodecAudioDialog::~CodecAudioDialog() {}
 
-void CodecAudioDialog::EncodeClicked()
+void CodecAudioDialog::Encode()
 {
-    bool ret = FFmpegHelper::SaveEncodeAudio(infile_edit_->text().toStdString().data(),
+    FFmpegHelper::AudioInfo info;
+    info.codec_id = codec_combo_->currentData().toInt();
+    info.bit_rate = bit_rate_edit_->text().toInt();
+    info.sample_rate = sample_rate_edit_->text().toInt();
+    info.channels = channel_combo_->currentData().toInt();
+
+    bool ret = FFmpegHelper::SaveEncodeAudio(info, infile_edit_->text().toStdString().data(),
                                              outfile_edit_->text().toStdString().data());
     if (ret) {
         QMessageBox::information(this, tr("Info"), tr("Successfully save the encoded audio file"));
     } else {
-        QMessageBox::warning(this, tr("Info"), tr("Failed to save the encoded audio file"));
+        QMessageBox::warning(this, tr("warning"), tr("Failed to save the encoded audio file"));
     }
 }
 
-void CodecAudioDialog::DecodeClicked()
+void CodecAudioDialog::Decode()
 {
     bool ret = FFmpegHelper::SaveDecodeAudio(infile_edit_->text().toStdString().data(),
                                              outfile_edit_->text().toStdString().data());
     if (ret) {
         QMessageBox::information(this, tr("Info"), tr("Successfully save the decoded audio file"));
     } else {
-        QMessageBox::warning(this, tr("Info"), tr("Failed to save the decoded audio file"));
+        QMessageBox::warning(this, tr("warning"), tr("Failed to save the decoded audio file"));
     }
 }
 
-
-void CodecAudioDialog::CancelClicked()
+void CodecAudioDialog::OkClicked()
 {
-    reject();
+    int index = codec_tabwidget_->currentIndex();
+
+    switch (index) {
+    case CodecAudioDialog::kDecode:
+        Decode();
+        break;
+    case CodecAudioDialog::kEncode:
+        Encode();
+        break;
+    default:
+        break;
+    }
 }

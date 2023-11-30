@@ -28,8 +28,6 @@ private:
         kTranscode
     };
 
-    QGridLayout* InitGridLayout(const QList<QPair<QWidget*, QWidget*>>& widget_pair_list);
-
     void Transcode();
     void Decode();
     void Encode();
@@ -37,7 +35,6 @@ private:
 
 private slots:
     void OkClicked() override;
-    void CancelClicked() override;
 
 private:
     FolderLineEdit* infile_edit_;

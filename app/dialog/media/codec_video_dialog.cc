@@ -10,6 +10,7 @@
 #include <QVBoxLayout>
 
 #include "codec/ffmpeghelper.h"
+#include "widget/common/uihelper.h"
 
 CodecVideoDialog::CodecVideoDialog(QWidget* parent)
     : ConfirmDialog(parent)
@@ -36,7 +37,7 @@ CodecVideoDialog::CodecVideoDialog(QWidget* parent)
     widget_pair_list.append(qMakePair(new QLabel(tr("I Frame Interval:")), gop_size_edit_));
     widget_pair_list.append(qMakePair(new QLabel(tr("Max B Frames:")), max_b_frames_edit_));
 
-    auto normal_grid_layout = InitGridLayout(widget_pair_list);
+    auto normal_grid_layout = uihelper::InitDialogGridLayout(widget_pair_list);
 
     // codec
     auto codec_title = new QLabel(tr("Codec"), this);
@@ -50,7 +51,7 @@ CodecVideoDialog::CodecVideoDialog(QWidget* parent)
     widget_pair_list.clear();
     widget_pair_list.append(qMakePair(new QLabel(tr("Codec:")), codec_combo_));
     widget_pair_list.append(qMakePair(new QLabel(tr("Encode Speed:")), encoder_speed_combo_));
-    auto codec_grid_layout = InitGridLayout(widget_pair_list);
+    auto codec_grid_layout = uihelper::InitDialogGridLayout(widget_pair_list);
 
     // crop
     auto crop_title = new QLabel(tr("Crop"), this);
@@ -69,7 +70,7 @@ CodecVideoDialog::CodecVideoDialog(QWidget* parent)
     widget_pair_list.clear();
     widget_pair_list.append(qMakePair(new QLabel(tr("Start Time:")), start_time_edit_));
     widget_pair_list.append(qMakePair(new QLabel(tr("End Time:")), end_time_edit_));
-    auto crop_grid_layout = InitGridLayout(widget_pair_list);
+    auto crop_grid_layout = uihelper::InitDialogGridLayout(widget_pair_list);
 
     codec_tabwidget_ = new QTabWidget(this);
     auto encoder_widget = new QWidget(codec_tabwidget_);
@@ -102,7 +103,7 @@ CodecVideoDialog::~CodecVideoDialog() {}
 
 void CodecVideoDialog::Encode()
 {
-    FFmpegHelper::AvInfo info;
+    FFmpegHelper::VideoInfo info;
     info.codec_name = codec_combo_->currentData().toString().toStdString();
     // info.codec_name = encoder_speed_combo_->currentText().toStdString();
     info.video_size = QString(width_edit_->text() + "x" + height_edit_->text()).toStdString();
@@ -121,25 +122,9 @@ void CodecVideoDialog::Encode()
     }
 }
 
-QGridLayout* CodecVideoDialog::InitGridLayout(const QList<QPair<QWidget*, QWidget*>>& widget_pair_list)
-{
-    int row = 0;
-    int rol = 0;
-    auto grid_layout = new QGridLayout;
-    grid_layout->setContentsMargins(12, 8, 12, 8);
-
-    for (auto pair : widget_pair_list) {
-        rol = 0;
-        grid_layout->addWidget(pair.first, row, rol++, Qt::AlignLeft);
-        grid_layout->addWidget(pair.second, row++, rol);
-    }
-
-    return grid_layout;
-}
-
 void CodecVideoDialog::Transcode()
 {
-    FFmpegHelper::AvInfo info;
+    FFmpegHelper::VideoInfo info;
     info.start_time = start_time_edit_->time().msecsSinceStartOfDay() / 1000;
     info.end_time = end_time_edit_->time().msecsSinceStartOfDay() / 1000;
 
@@ -168,7 +153,6 @@ void CodecVideoDialog::Decode()
 
 void CodecVideoDialog::OkClicked()
 {
-
     bool ret = FFmpegHelper::ExportSingleStream(0, infile_edit_->text().toStdString().data(),
                                                 outfile_edit_->text().toStdString().data());
 
@@ -193,9 +177,4 @@ void CodecVideoDialog::OkClicked()
     default:
         break;
     }
-}
-
-void CodecVideoDialog::CancelClicked()
-{
-    reject();
 }

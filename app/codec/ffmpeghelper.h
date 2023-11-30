@@ -38,7 +38,7 @@ public:
     explicit FFmpegHelper();
     ~FFmpegHelper();
 
-    struct AvInfo
+    struct VideoInfo
     {
         std::string codec_name;
         std::string video_size;
@@ -51,17 +51,25 @@ public:
         int end_time;
     };
 
+    struct AudioInfo
+    {
+        int codec_id; // 0: mp3, 1: aac
+        int bit_rate;
+        int sample_rate;
+        int channels; // 1: mono, 2: stereo, 3: surround
+    };
+
     static void FFmpegError(int code);
 
     static bool ReadMediaByAvio(const char* filename);
 
-    static bool SaveTranscodeFormat(const AvInfo& info, const char* infile, const char* outfile);
+    static bool SaveTranscodeFormat(const VideoInfo& info, const char* infile, const char* outfile);
 
     static bool SaveDecodeAudio(const char* infile, const char* outfile);
-    static bool SaveEncodeAudio(const char* infile, const char* outfile);
+    static bool SaveEncodeAudio(const AudioInfo& info, const char* infile, const char* outfile);
 
     static bool SaveDecodeVideo(const char* infile, const char* outfile);
-    static bool SaveEncodeVideo(const AvInfo& info, const char* infile, const char* outfile);
+    static bool SaveEncodeVideo(const VideoInfo& info, const char* infile, const char* outfile);
 
     /**
      * @brief Dump single stream from the input media file.
@@ -80,7 +88,6 @@ private:
         uint8_t* ptr;
         size_t size;
     };
-
     static int read_packet(void* opaque, uint8_t* buf, int buf_size);
 
     static void DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame, FILE* outfile_fp);

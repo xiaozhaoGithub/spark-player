@@ -5,6 +5,7 @@ extern "C"
 #include "libavutil/imgutils.h"
 #include "libavutil/opt.h"
 #include "libavutil/parseutils.h"
+#include "libswresample/swresample.h"
 }
 #include "spdlog/spdlog.h"
 
@@ -72,9 +73,9 @@ void FFmpegHelper::DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame
             return;
         }
 
-        // Stored as packed
-        // L L L L  -> L R L R
-        // R R R R  -> L R L R
+        // frame: planar and packed mode.
+        // L L L L ==> L R L R L R L R
+        // R R R R
         for (int i = 0; i < frame->nb_samples; ++i) {
             for (int ch = 0; ch < codec_ctx->channels; ++ch) {
                 fwrite(frame->data[ch] + i * data_size, 1, data_size, outfile_fp);
@@ -229,7 +230,7 @@ bool FFmpegHelper::ReadMediaByAvio(const char* filename)
     return true;
 }
 
-bool FFmpegHelper::SaveTranscodeFormat(const AvInfo& info, const char* infile, const char* outfile)
+bool FFmpegHelper::SaveTranscodeFormat(const VideoInfo& info, const char* infile, const char* outfile)
 {
     AVFormatContext* infmt_ctx = nullptr;
     int ret = avformat_open_input(&infmt_ctx, infile, nullptr, nullptr);
@@ -533,9 +534,25 @@ bool FFmpegHelper::SaveDecodeAudio(const char* infile, const char* outfile)
     return true;
 }
 
-bool FFmpegHelper::SaveEncodeAudio(const char* infile, const char* outfile)
+int AudioChLayout(int type)
 {
-    AVCodec* codec = avcodec_find_encoder(AV_CODEC_ID_MP3);
+    switch (type) {
+    case 1:
+        return AV_CH_LAYOUT_MONO;
+    case 2:
+        return AV_CH_LAYOUT_STEREO;
+    case 3:
+        return AV_CH_LAYOUT_SURROUND;
+    default:
+        break;
+    }
+
+    return AV_CH_LAYOUT_STEREO;
+}
+
+bool FFmpegHelper::SaveEncodeAudio(const AudioInfo& info, const char* infile, const char* outfile)
+{
+    AVCodec* codec = avcodec_find_encoder(info.codec_id ? AV_CODEC_ID_AAC : AV_CODEC_ID_MP3);
     if (!codec) {
         SPDLOG_ERROR("Failed to find audio codec.");
         return false;
@@ -548,11 +565,11 @@ bool FFmpegHelper::SaveEncodeAudio(const char* infile, const char* outfile)
     }
     DEFER(avcodec_free_context(&codec_ctx););
 
-    codec_ctx->bit_rate = 320000;
-    codec_ctx->sample_rate = 44100;
-    codec_ctx->channels = 2;
-    codec_ctx->channel_layout = AV_CH_LAYOUT_STEREO;
-    codec_ctx->sample_fmt = AV_SAMPLE_FMT_S16P;
+    codec_ctx->bit_rate = info.bit_rate;
+    codec_ctx->sample_rate = info.sample_rate;
+    codec_ctx->channels = info.channels;
+    codec_ctx->channel_layout = AudioChLayout(info.channels);
+    codec_ctx->sample_fmt = AV_SAMPLE_FMT_FLTP;
 
     int ret = avcodec_open2(codec_ctx, codec, nullptr);
     if (ret < 0) {
@@ -598,8 +615,6 @@ bool FFmpegHelper::SaveEncodeAudio(const char* infile, const char* outfile)
     frame->channel_layout = codec_ctx->channel_layout;
     frame->nb_samples = codec_ctx->frame_size; // encoding: set by libavcodec in avcodec_open2()
 
-    av_frame_get_buffer(frame, 0);
-
     while (true) {
         size_t read_byte = fread(frame->data[0], 1, frame->linesize[0], infile_fp);
         if (read_byte == 0) {
@@ -610,6 +625,7 @@ bool FFmpegHelper::SaveEncodeAudio(const char* infile, const char* outfile)
             }
             break;
         }
+
         EncodeAudio(codec_ctx, frame, pkt, outfile_fp);
     }
     EncodeAudio(codec_ctx, nullptr, pkt, outfile_fp);
@@ -715,7 +731,7 @@ bool FFmpegHelper::SaveDecodeVideo(const char* infile, const char* outfile)
     return true;
 }
 
-bool FFmpegHelper::SaveEncodeVideo(const AvInfo& info, const char* infile, const char* outfile)
+bool FFmpegHelper::SaveEncodeVideo(const VideoInfo& info, const char* infile, const char* outfile)
 {
     AVCodec* codec = avcodec_find_encoder_by_name(info.codec_name.data());
     if (!codec) {

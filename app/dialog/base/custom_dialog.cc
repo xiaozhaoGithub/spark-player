@@ -38,6 +38,7 @@ void ConfirmDialog::OkClicked()
 {
     accept();
 }
+
 void ConfirmDialog::CancelClicked()
 {
     reject();
