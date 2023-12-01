@@ -84,29 +84,34 @@ void FFmpegHelper::DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame
     }
 }
 
-int FFmpegHelper::EncodeAudio(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt, FILE* outfile_fp)
+void FFmpegHelper::EncodeAudio(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt,
+                               AVFormatContext* outfmt_ctx)
 {
     int ret = avcodec_send_frame(codec_ctx, frame);
     if (ret < 0) {
         FFmpegError(ret);
-        return ret;
+        return;
     }
 
     while (ret >= 0) {
         ret = avcodec_receive_packet(codec_ctx, pkt);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-            return ret;
+            return;
         } else if (ret < 0) {
             FFmpegError(ret);
-            return ret;
+            return;
         }
 
-        ret = (int)fwrite(pkt->data, 1, pkt->size, outfile_fp);
-
+        ret = av_interleaved_write_frame(outfmt_ctx, pkt);
+        if (ret < 0) {
+            FFmpegError(ret);
+            av_packet_unref(pkt);
+            break;
+        }
         av_packet_unref(pkt);
     }
 
-    return ret;
+    return;
 }
 
 void FFmpegHelper::EncodeVideo(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt, FILE* outfile_fp)
@@ -219,7 +224,7 @@ bool FFmpegHelper::ReadMediaByAvio(const char* filename)
         return false;
     }
 
-    ret = avformat_find_stream_info(fmt_ctx, NULL);
+    ret = avformat_find_stream_info(fmt_ctx, nullptr);
     if (ret < 0) {
         FFmpegError(ret);
         return false;
@@ -569,6 +574,7 @@ bool FFmpegHelper::SaveEncodeAudio(const AudioInfo& info, const char* infile, co
     codec_ctx->sample_rate = info.sample_rate;
     codec_ctx->channels = info.channels;
     codec_ctx->channel_layout = AudioChLayout(info.channels);
+    // output fltp
     codec_ctx->sample_fmt = AV_SAMPLE_FMT_FLTP;
 
     int ret = avcodec_open2(codec_ctx, codec, nullptr);
@@ -578,6 +584,7 @@ bool FFmpegHelper::SaveEncodeAudio(const AudioInfo& info, const char* infile, co
     }
     DEFER(avcodec_close(codec_ctx););
 
+    // open pcm file.
     FILE* infile_fp = fopen(infile, "rb");
     if (!infile_fp) {
         SPDLOG_ERROR("Failed to open infile.");
@@ -585,16 +592,41 @@ bool FFmpegHelper::SaveEncodeAudio(const AudioInfo& info, const char* infile, co
     }
     DEFER(fclose(infile_fp););
 
-
     FILE* outfile_fp = fopen(outfile, "wb");
     if (!outfile_fp) {
-        SPDLOG_ERROR("Failed to open outfile.");
+        SPDLOG_ERROR("Failed to open infile.");
         return false;
     }
     DEFER(fclose(outfile_fp););
 
+    // output fomrat
+    AVFormatContext* outfmt_ctx = nullptr;
+    ret = avformat_alloc_output_context2(&outfmt_ctx, nullptr, nullptr, outfile);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+    DEFER(avformat_free_context(outfmt_ctx);)
 
-    // Frame to packet
+    AVStream* out_stream = avformat_new_stream(outfmt_ctx, codec);
+    ret = avcodec_parameters_from_context(out_stream->codecpar, codec_ctx);
+    if (ret < 0) {
+        SPDLOG_ERROR("Failed to set parameters from context.");
+        return false;
+    }
+
+    ret = avio_open(&outfmt_ctx->pb, outfile, AVIO_FLAG_WRITE);
+    if (ret < 0) {
+        return false;
+    }
+    DEFER(avio_closep(&outfmt_ctx->pb);)
+
+    ret = avformat_write_header(outfmt_ctx, nullptr);
+    if (ret < 0) {
+        printf("avformat_write_header fail \n");
+        return false;
+    }
+
     AVPacket* pkt = av_packet_alloc();
     if (!pkt) {
         SPDLOG_ERROR("Failed to alloc packet.");
@@ -602,22 +634,69 @@ bool FFmpegHelper::SaveEncodeAudio(const AudioInfo& info, const char* infile, co
     }
     DEFER(av_packet_free(&pkt););
 
-    AVFrame* frame = av_frame_alloc();
-    if (!frame) {
+    AVFrame* src_frame = av_frame_alloc();
+    if (!src_frame) {
         SPDLOG_ERROR("Failed to alloc frame.");
         return false;
     }
-    DEFER(av_frame_free(&frame););
+    DEFER(av_frame_free(&src_frame););
 
-    frame->sample_rate = codec_ctx->sample_rate;
-    frame->format = codec_ctx->sample_fmt;
-    frame->channels = codec_ctx->channels;
-    frame->channel_layout = codec_ctx->channel_layout;
-    frame->nb_samples = codec_ctx->frame_size; // encoding: set by libavcodec in avcodec_open2()
+    src_frame->nb_samples = codec_ctx->frame_size;
+    src_frame->format = AV_SAMPLE_FMT_FLT;
+    src_frame->channel_layout = codec_ctx->channel_layout;
+    src_frame->sample_rate = codec_ctx->sample_rate;
+    ret = av_frame_get_buffer(src_frame, 0);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
 
+    AVFrame* dst_frame = av_frame_alloc();
+    if (!dst_frame) {
+        SPDLOG_ERROR("Failed to alloc frame.");
+        return false;
+    }
+    DEFER(av_frame_free(&dst_frame););
+
+    dst_frame->sample_rate = codec_ctx->sample_rate;
+    dst_frame->format = codec_ctx->sample_fmt;
+    dst_frame->channels = codec_ctx->channels;
+    dst_frame->channel_layout = codec_ctx->channel_layout;
+    dst_frame->nb_samples = codec_ctx->frame_size; // encoding: set by libavcodec in avcodec_open2()
+    ret = av_frame_get_buffer(dst_frame, 0);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    int pcm_per_sample_size = av_get_bytes_per_sample(static_cast<AVSampleFormat>(src_frame->format));
+    int pcm_buffer_size = src_frame->nb_samples * pcm_per_sample_size * src_frame->channels;
+
+    uint8_t* pcm_buffer = static_cast<uint8_t*>(av_malloc(pcm_buffer_size));
+    DEFER(av_freep(&pcm_buffer);)
+
+    // Resampling required due to sampling format changes
+    SwrContext* swr_ctx = swr_alloc_set_opts(nullptr, codec_ctx->channel_layout, codec_ctx->sample_fmt,
+                                             codec_ctx->sample_rate, codec_ctx->channel_layout,
+                                             static_cast<AVSampleFormat>(src_frame->format),
+                                             codec_ctx->sample_rate, 0, nullptr);
+    if (!swr_ctx) {
+        SPDLOG_ERROR("Failed to alloc swr ctx.");
+        return false;
+    }
+    DEFER(swr_free(&swr_ctx);)
+
+    ret = swr_init(swr_ctx);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    int pts = 0;
     while (true) {
-        size_t read_byte = fread(frame->data[0], 1, frame->linesize[0], infile_fp);
-        if (read_byte == 0) {
+        // Read audio frames one by one.
+        size_t size = fread(pcm_buffer, 1, pcm_buffer_size, infile_fp);
+        if (size == 0) {
             if (feof(infile_fp)) {
                 SPDLOG_INFO("Data reading complete.");
             } else if (ferror(infile_fp)) {
@@ -626,9 +705,38 @@ bool FFmpegHelper::SaveEncodeAudio(const AudioInfo& info, const char* infile, co
             break;
         }
 
-        EncodeAudio(codec_ctx, frame, pkt, outfile_fp);
+        // Maybe size != pcm_buffer_size
+        int cur_nb_samples = size / (pcm_per_sample_size * src_frame->channels);
+        src_frame->nb_samples = cur_nb_samples;
+        dst_frame->nb_samples = cur_nb_samples;
+
+        // Pcm buffer fill to src frame arrays
+        ret = av_samples_fill_arrays(src_frame->data, src_frame->linesize, pcm_buffer,
+                                     src_frame->channels, src_frame->nb_samples,
+                                     static_cast<AVSampleFormat>(src_frame->format), 0);
+        if (ret < 0) {
+            FFmpegError(ret);
+            return false;
+        }
+
+        // convert audio
+        ret = swr_convert(swr_ctx, dst_frame->data, dst_frame->nb_samples,
+                          const_cast<const uint8_t**>(src_frame->data), src_frame->nb_samples);
+        if (ret < 0) {
+            FFmpegError(ret);
+            return false;
+        }
+
+        dst_frame->pts = pts++;
+        EncodeAudio(codec_ctx, dst_frame, pkt, outfmt_ctx);
     }
-    EncodeAudio(codec_ctx, nullptr, pkt, outfile_fp);
+    EncodeAudio(codec_ctx, nullptr, pkt, outfmt_ctx);
+
+    ret = av_write_trailer(outfmt_ctx);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
 
     return true;
 }

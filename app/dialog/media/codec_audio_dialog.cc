@@ -8,6 +8,7 @@
 
 #include "codec/ffmpeghelper.h"
 #include "widget/common/uihelper.h"
+#include "widget/common/widgets.h"
 
 CodecAudioDialog::CodecAudioDialog(QWidget* parent)
     : ConfirmDialog(parent)
@@ -35,6 +36,10 @@ CodecAudioDialog::CodecAudioDialog(QWidget* parent)
 
     // codec
     auto codec_title = new QLabel(tr("Codec"), this);
+    auto codec_tip = new IconButton(style()->standardIcon(QStyle::SP_MessageBoxInformation), this);
+    codec_tip->setFixedSize(16, 16);
+    codec_tip->setToolTip(tr("Only pcm files in f32le format are supported"));
+
     codec_combo_ = new QComboBox(this);
     codec_combo_->addItem(tr("mp3"), 0);
     codec_combo_->addItem(tr("aac"), 1);
@@ -49,10 +54,15 @@ CodecAudioDialog::CodecAudioDialog(QWidget* parent)
     codec_tabwidget_->insertTab(kDecode, new QWidget(codec_tabwidget_), tr("Decode"));
     codec_tabwidget_->insertTab(kEncode, encoder_widget, tr("Encode"));
 
+    auto codec_title_layout = new QHBoxLayout;
+    codec_title_layout->addWidget(codec_title);
+    codec_title_layout->addWidget(codec_tip);
+    codec_title_layout->addStretch();
+
     auto encode_layout = new QVBoxLayout(encoder_widget);
     encode_layout->addWidget(normal_title);
     encode_layout->addLayout(normal_layout);
-    encode_layout->addWidget(codec_title);
+    encode_layout->addLayout(codec_title_layout);
     encode_layout->addLayout(codec_layout);
     encode_layout->setAlignment(normal_title, Qt::AlignLeft);
     encode_layout->setAlignment(codec_title, Qt::AlignLeft);

@@ -91,7 +91,8 @@ private:
     static int read_packet(void* opaque, uint8_t* buf, int buf_size);
 
     static void DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame, FILE* outfile_fp);
-    static int EncodeAudio(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt, FILE* outfile_fp);
+    static void EncodeAudio(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt,
+                            AVFormatContext* outfmt_ctx);
 
     static void EncodeVideo(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt, FILE* outfile_fp);
     static void DecodeVideo(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame, FILE* outfile_fp);
