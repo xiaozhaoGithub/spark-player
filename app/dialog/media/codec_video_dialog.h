@@ -42,8 +42,12 @@ private:
 
     QTabWidget* codec_tabwidget_;
 
-    QLineEdit* width_edit_;
-    QLineEdit* height_edit_;
+    QLineEdit* decode_w_edit_;
+    QLineEdit* decode_h_edit_;
+    QComboBox* decode_pix_fmt_combo_;
+
+    QLineEdit* encode_w_edit_;
+    QLineEdit* encode_h_edit_;
     QLineEdit* framerate_edit_;
     QLineEdit* bitrate_edit_;
     QLineEdit* gop_size_edit_;

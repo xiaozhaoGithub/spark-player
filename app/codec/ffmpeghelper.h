@@ -6,6 +6,7 @@ extern "C"
 {
 #include "libavformat/avformat.h"
 #include "libavutil/file.h"
+#include "libswscale/swscale.h"
 }
 
 using Function = std::function<void()>;
@@ -42,6 +43,7 @@ public:
     {
         std::string codec_name;
         std::string video_size;
+        int pix_fmt; // 0: YUV420P, 1: RGB24
         int framerate;
         int bit_rate;
         int gop_size;
@@ -68,7 +70,7 @@ public:
     static bool SaveDecodeAudio(const char* infile, const char* outfile);
     static bool SaveEncodeAudio(const AudioInfo& info, const char* infile, const char* outfile);
 
-    static bool SaveDecodeVideo(const char* infile, const char* outfile);
+    static bool SaveDecodeVideo(const VideoInfo& info, const char* infile, const char* outfile);
     static bool SaveEncodeVideo(const VideoInfo& info, const char* infile, const char* outfile);
 
     /**
@@ -95,7 +97,8 @@ private:
                             AVFormatContext* outfmt_ctx);
 
     static void EncodeVideo(AVCodecContext* codec_ctx, AVFrame* frame, AVPacket* pkt, FILE* outfile_fp);
-    static void DecodeVideo(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame, FILE* outfile_fp);
+    static void DecodeVideo(SwsContext* sws_ctx, AVCodecContext* codec_ctx, AVPixelFormat fmt,
+                            AVPacket* pkt, AVFrame* src_frame, AVFrame* dst_frame, FILE* outfile_fp);
 };
 
 #endif

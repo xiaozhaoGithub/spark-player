@@ -139,7 +139,8 @@ void FFmpegHelper::EncodeVideo(AVCodecContext* codec_ctx, AVFrame* frame, AVPack
     return;
 }
 
-void FFmpegHelper::DecodeVideo(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame* frame, FILE* outfile_fp)
+void FFmpegHelper::DecodeVideo(SwsContext* sws_ctx, AVCodecContext* codec_ctx, AVPixelFormat fmt,
+                               AVPacket* pkt, AVFrame* src_frame, AVFrame* dst_frame, FILE* outfile_fp)
 {
     int ret = avcodec_send_packet(codec_ctx, pkt);
     if (ret < 0) {
@@ -148,7 +149,7 @@ void FFmpegHelper::DecodeVideo(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame
     }
 
     while (ret >= 0) {
-        ret = avcodec_receive_frame(codec_ctx, frame);
+        ret = avcodec_receive_frame(codec_ctx, src_frame);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
             return;
         } else if (ret < 0) {
@@ -156,12 +157,22 @@ void FFmpegHelper::DecodeVideo(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame
             return;
         }
 
-        // YUV420P
-        fwrite(frame->data[0], 1, frame->width * frame->height, outfile_fp);
-        fwrite(frame->data[1], 1, frame->width * frame->height / 4, outfile_fp);
-        fwrite(frame->data[2], 1, frame->width * frame->height / 4, outfile_fp);
+        ret = sws_scale(sws_ctx, src_frame->data, src_frame->linesize, 0, src_frame->height,
+                        dst_frame->data, dst_frame->linesize);
+        if (ret <= 0) {
+            av_frame_unref(src_frame);
+            continue;
+        }
 
-        av_frame_unref(frame);
+        if (fmt == AV_PIX_FMT_YUV420P) {
+            fwrite(dst_frame->data[0], 1, dst_frame->width * dst_frame->height, outfile_fp);
+            fwrite(dst_frame->data[1], 1, dst_frame->width * dst_frame->height / 4, outfile_fp);
+            fwrite(dst_frame->data[2], 1, dst_frame->width * dst_frame->height / 4, outfile_fp);
+        } else if (fmt == AV_PIX_FMT_RGB24) {
+            fwrite(dst_frame->data[0], 1, dst_frame->width * dst_frame->height * 3, outfile_fp);
+        }
+
+        av_frame_unref(src_frame);
     }
 
     return;
@@ -741,7 +752,7 @@ bool FFmpegHelper::SaveEncodeAudio(const AudioInfo& info, const char* infile, co
     return true;
 }
 
-bool FFmpegHelper::SaveDecodeVideo(const char* infile, const char* outfile)
+bool FFmpegHelper::SaveDecodeVideo(const VideoInfo& info, const char* infile, const char* outfile)
 {
     AVFormatContext* fmt_ctx = nullptr;
     int ret = avformat_open_input(&fmt_ctx, infile, nullptr, nullptr);
@@ -763,6 +774,7 @@ bool FFmpegHelper::SaveDecodeVideo(const char* infile, const char* outfile)
         FFmpegError(ret);
         return false;
     }
+    int video_index = ret;
 
     AVCodecContext* codec_ctx = avcodec_alloc_context3(nullptr);
     if (!codec_ctx) {
@@ -771,9 +783,7 @@ bool FFmpegHelper::SaveDecodeVideo(const char* infile, const char* outfile)
     }
     DEFER(avcodec_free_context(&codec_ctx););
 
-    int video_index = ret;
     AVStream* stream = fmt_ctx->streams[video_index];
-
     AVCodec* codec = avcodec_find_decoder(stream->codecpar->codec_id);
     if (!codec) {
         SPDLOG_ERROR("Failed to find codec.");
@@ -800,12 +810,12 @@ bool FFmpegHelper::SaveDecodeVideo(const char* infile, const char* outfile)
     }
     DEFER(av_packet_free(&pkt););
 
-    AVFrame* frame = av_frame_alloc();
-    if (!frame) {
+    AVFrame* src_frame = av_frame_alloc();
+    if (!src_frame) {
         SPDLOG_ERROR("Failed to alloc frame.");
         return false;
     }
-    DEFER(av_frame_free(&frame););
+    DEFER(av_frame_free(&src_frame););
 
     FILE* outfile_fp = fopen(outfile, "wb");
     if (!outfile_fp) {
@@ -814,6 +824,41 @@ bool FFmpegHelper::SaveDecodeVideo(const char* infile, const char* outfile)
     }
     DEFER(fclose(outfile_fp););
 
+    int width;
+    int height;
+    ret = av_parse_video_size(&width, &height, info.video_size.data());
+    if (ret < 0) {
+        SPDLOG_ERROR("Failed to parse video size:{0}.", info.video_size);
+        return false;
+    }
+    width = width >> 2 << 2; // align 4 byte
+    AVPixelFormat src_fmt = static_cast<AVPixelFormat>(stream->codecpar->format);
+    AVPixelFormat dst_fmt = info.pix_fmt == 0 ? AV_PIX_FMT_YUV420P : AV_PIX_FMT_RGB24;
+
+    AVFrame* dst_frame = av_frame_alloc();
+    if (!dst_frame) {
+        SPDLOG_ERROR("Failed to alloc frame.");
+        return false;
+    }
+    DEFER(av_frame_free(&dst_frame);)
+
+    dst_frame->width = width;
+    dst_frame->height = height;
+    dst_frame->format = dst_fmt;
+    ret = av_frame_get_buffer(dst_frame, 0);
+    if (ret < 0) {
+        FFmpegError(ret);
+        return false;
+    }
+
+    SwsContext* sws_ctx =
+        sws_getContext(stream->codecpar->width, stream->codecpar->height, src_fmt, width, height,
+                       dst_fmt, SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
+    if (!sws_ctx) {
+        SPDLOG_ERROR("Failed to get sws context.");
+        return false;
+    }
+    DEFER(sws_freeContext(sws_ctx);)
 
     // Write frame to outfile
     while (ret >= 0) {
@@ -829,12 +874,17 @@ bool FFmpegHelper::SaveDecodeVideo(const char* infile, const char* outfile)
             continue;
         }
 
-        DecodeVideo(codec_ctx, pkt, frame, outfile_fp);
+        DecodeVideo(sws_ctx, codec_ctx, dst_fmt, pkt, src_frame, dst_frame, outfile_fp);
 
         av_packet_unref(pkt);
     }
     // Flush decoder
-    DecodeVideo(codec_ctx, nullptr, frame, outfile_fp);
+    DecodeVideo(sws_ctx, codec_ctx, dst_fmt, nullptr, src_frame, dst_frame, outfile_fp);
+
+    av_frame_unref(dst_frame);
+
+    SPDLOG_INFO("src video size:[{0}x{1}], format:{2}, dest video size:[{3}x{4}], format:{5}]",
+                codec_ctx->width, codec_ctx->height, src_fmt, width, height, dst_fmt);
 
     return true;
 }
