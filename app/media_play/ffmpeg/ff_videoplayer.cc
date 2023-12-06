@@ -1,46 +1,50 @@
-#include "video_worker_thread.h"
+#include "ff_videoplayer.h"
 
 #include <QApplication>
 
+#include "common/avdef.h"
 #include "spdlog/spdlog.h"
 
-VideoWorkerThread::VideoWorkerThread(QObject* parent)
-    : QThread(parent)
+FFVideoPlayer::FFVideoPlayer(QObject* parent)
+    : VideoPlayer()
+    , QThread(parent)
     , playstate_(kStop)
 {
-    decoder_ = new FFmpegDecoder(this);
+    decoder_ = std::make_unique<FFmpegDecoder>();
     writer_ = std::make_unique<FFmpegWriter>();
 }
 
-VideoWorkerThread::~VideoWorkerThread()
+FFVideoPlayer::~FFVideoPlayer()
 {
-    set_playstate(VideoWorkerThread::kStop);
+    set_playstate(FFVideoPlayer::kStop);
 
     quit();
     wait();
 }
 
-void VideoWorkerThread::Open()
+void FFVideoPlayer::Open()
 {
-    if (playstate() == VideoWorkerThread::kPause) {
-        set_playstate(VideoWorkerThread::kPlaying);
+    if (playstate() == FFVideoPlayer::kPause) {
+        set_playstate(FFVideoPlayer::kPlaying);
         return;
     }
 
     start();
 }
 
-void VideoWorkerThread::Pause()
+void FFVideoPlayer::Pause()
 {
-    set_playstate(VideoWorkerThread::kPause);
+    set_playstate(FFVideoPlayer::kPause);
 }
 
-void VideoWorkerThread::Stop()
+void FFVideoPlayer::Stop()
 {
-    set_playstate(VideoWorkerThread::kStop);
+    set_playstate(FFVideoPlayer::kStop);
 }
 
-void VideoWorkerThread::StartRecord()
+void FFVideoPlayer::Resume() {}
+
+void FFVideoPlayer::StartRecord()
 {
     QString filename =
         QApplication::applicationDirPath() + "/"
@@ -54,18 +58,18 @@ void VideoWorkerThread::StartRecord()
 
     writer_->set_media(media);
 
-    if (writer_->Open(decoder_->stream())) {
+    if (writer_->Open(decoder_->video_stream())) {
         emit RecordState(true);
     }
 }
 
-void VideoWorkerThread::StopRecord()
+void FFVideoPlayer::StopRecord()
 {
     writer_->Close();
     emit RecordState(false);
 }
 
-void VideoWorkerThread::run()
+void FFVideoPlayer::run()
 {
     bool ret = decoder_->Open();
     if (!ret)
@@ -81,7 +85,7 @@ void VideoWorkerThread::run()
             QThread::msleep(200);
         }
 
-        AVFrame* frame = decoder_->GetFrame();
+        DecodeFrame* frame = decoder_->GetFrame();
         if (frame) {
             if (decoder_->media()->type != kCapture) {
                 int ms = decoder_->pts() - elapsed_timer_.elapsed();
@@ -89,9 +93,8 @@ void VideoWorkerThread::run()
                     QThread::msleep(ms);
                 }
             }
-            writer_->Write(frame);
-
-            emit SendFrame(frame);
+            // writer_->Write(frame);
+            push_frame(frame);
         } else {
             if (decoder_->is_end()) {
                 playstate_ = kStop;

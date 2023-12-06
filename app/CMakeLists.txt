@@ -10,6 +10,7 @@ add_subdirectory(dialog)
 add_subdirectory(common)
 add_subdirectory(config)
 add_subdirectory(util)
+add_subdirectory(media_play)
 
 QT5_ADD_RESOURCES(RCC_FILES ffmpeg-player.qrc)
 

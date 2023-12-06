@@ -1,10 +1,7 @@
 #ifndef FFMPEGDECODER_H_
 #define FFMPEGDECODER_H_
 
-#include <QImage>
-#include <QObject>
-#include <QSize>
-#include <QTime>
+#include <vector>
 
 extern "C"
 {
@@ -16,26 +13,25 @@ extern "C"
 }
 
 #include "common/media_info.h"
+#include "util/decode_frame.h"
 
-class FFmpegDecoder : public QObject
+class FFmpegDecoder
 {
-    Q_OBJECT
 public:
-    explicit FFmpegDecoder(QObject* parent = nullptr);
+    explicit FFmpegDecoder();
     ~FFmpegDecoder();
 
-    void set_media(const MediaInfo& media);
-    MediaInfo* media();
+    void set_media(const MediaInfo& media) { media_.reset(new MediaInfo(media)); }
+    MediaInfo* media() { return media_.get(); }
 
     bool Open();
     void Close();
 
     int GetPacket(AVPacket* pkt);
-    AVFrame* GetFrame();
+    DecodeFrame* GetFrame();
 
-    inline bool is_end();
-    inline int64_t pts();
-    inline AVStream* stream();
+    bool is_end() { return end_; }
+    AVStream* video_stream() { return video_stream_; }
 
 private:
     void FFmpegError(int error_code);
@@ -55,36 +51,22 @@ private:
     AVFormatContext* fmt_ctx_;
     AVCodecContext* codec_ctx_;
     SwsContext* sws_ctx_;
-    AVStream* stream_;
+    AVStream* video_stream_;
     AVPacket* packet_;
     AVFrame* frame_;
 
     AVFrame* hw_frame_;
     AVBufferRef* hw_dev_ctx_;
-    QVector<uint32_t> hw_devices;
+    std::vector<uint32_t> hw_devices_;
+
+    DecodeFrame decode_frame_;
+    uint8_t* data_[4];
+    int linesize_[AV_NUM_DATA_POINTERS];
 
     int64_t video_duration_;
     double frame_rate_;
     int64_t frame_num_;
-    QSize video_resolution_;
-    uint8_t* image_buf_;
     bool end_;
-    int64_t pts_;
 };
-
-inline bool FFmpegDecoder::is_end()
-{
-    return end_;
-}
-
-inline int64_t FFmpegDecoder::pts()
-{
-    return pts_;
-}
-
-inline AVStream* FFmpegDecoder::stream()
-{
-    return stream_;
-}
 
 #endif

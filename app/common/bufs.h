@@ -57,29 +57,14 @@ public:
     {
         cleanup_ = false;
     }
-    HBuf(size_t cap)
-    {
-        resize(cap);
-    }
+    HBuf(size_t cap) { resize(cap); }
 
-    virtual ~HBuf()
-    {
-        cleanup();
-    }
+    virtual ~HBuf() { cleanup(); }
 
-    void* data()
-    {
-        return base;
-    }
-    size_t size()
-    {
-        return len;
-    }
+    void* data() { return base; }
+    size_t size() { return len; }
 
-    bool isNull()
-    {
-        return base == NULL || len == 0;
-    }
+    bool isNull() { return base == NULL || len == 0; }
 
     void cleanup()
     {
@@ -110,10 +95,7 @@ public:
         memcpy(base, data, len);
     }
 
-    void copy(hbuf_t* buf)
-    {
-        copy(buf->base, buf->len);
-    }
+    void copy(hbuf_t* buf) { copy(buf->base, buf->len); }
 
 private:
     bool cleanup_;
@@ -141,14 +123,8 @@ public:
     }
     virtual ~HVLBuf() {}
 
-    char* data()
-    {
-        return base + _offset;
-    }
-    size_t size()
-    {
-        return _size;
-    }
+    char* data() { return base + _offset; }
+    size_t size() { return _size; }
 
     void push_front(void* ptr, size_t len)
     {
@@ -207,30 +183,15 @@ public:
         }
     }
 
-    void clear()
-    {
-        _offset = _size = 0;
-    }
+    void clear() { _offset = _size = 0; }
 
-    void prepend(void* ptr, size_t len)
-    {
-        push_front(ptr, len);
-    }
+    void prepend(void* ptr, size_t len) { push_front(ptr, len); }
 
-    void append(void* ptr, size_t len)
-    {
-        push_back(ptr, len);
-    }
+    void append(void* ptr, size_t len) { push_back(ptr, len); }
 
-    void insert(void* ptr, size_t len)
-    {
-        push_back(ptr, len);
-    }
+    void insert(void* ptr, size_t len) { push_back(ptr, len); }
 
-    void remove(size_t len)
-    {
-        pop_front(NULL, len);
-    }
+    void remove(size_t len) { pop_front(NULL, len); }
 
 private:
     size_t _offset;
@@ -289,15 +250,9 @@ public:
         }
     }
 
-    void clear()
-    {
-        _head = _tail = _size = 0;
-    }
+    void clear() { _head = _tail = _size = 0; }
 
-    size_t size()
-    {
-        return _size;
-    }
+    size_t size() { return _size; }
 
 private:
     size_t _head;

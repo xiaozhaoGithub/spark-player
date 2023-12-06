@@ -13,7 +13,8 @@ public:
     ~Config();
 
     void SetAppConfigData(const QString& group, const QString& key, const QVariant& value);
-    QVariant AppConfigData(const QString& group, const QString& key, const QVariant& default);
+    QVariant AppConfigData(const QString& group, const QString& key,
+                           const QVariant& default_value = QVariant());
 
     quint32 GetConfigFileDir(char* filename, quint32 size);
 
@@ -21,7 +22,7 @@ private:
     void SetConfigData(QSettings* settings, const QString& group, const QString& key,
                        const QVariant& value);
     QVariant AppConfigData(QSettings* settings, const QString& group, const QString& key,
-                           const QVariant& default);
+                           const QVariant& default_value);
 
 private:
     QSettings* app_settings_;

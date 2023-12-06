@@ -12,8 +12,8 @@
 #include <mutex>
 
 #include "opengl_renderer.h"
-#include "codec/video_worker_thread.h"
 #include "common/media_info.h"
+#include "media_play/ffmpeg/video_worker_thread.h"
 
 using QOpenGLTexturePtr = std::shared_ptr<QOpenGLTexture>;
 
@@ -57,7 +57,7 @@ private slots:
     void ExitFullScreenClicked();
 
 private:
-    VideoWorkerThread* video_thread_;
+    VideoPlayer* video_player_;
     std::shared_ptr<OpenGLRenderer> renderer_;
 
     std::mutex mutex_;

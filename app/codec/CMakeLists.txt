@@ -2,8 +2,6 @@ set(Sources
 	${Sources}
 	codec/ffmpegdecoder.cc
 	codec/ffmpegdecoder.h
-	codec/video_worker_thread.cc
-	codec/video_worker_thread.h
 	codec/ffmpegwriter.cc
 	codec/ffmpegwriter.h
 	codec/ffmpeghelper.cc

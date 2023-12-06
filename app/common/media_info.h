@@ -3,16 +3,13 @@
 
 #include <string>
 
-#include "common/def.h"
+#include "common/avdef.h"
 
-typedef struct MediaInfo_
+typedef struct media_info_
 {
     MediaSourceType type;
     std::string src;
 
-    MediaInfo_()
-    {
-        type = kNone;
-    };
+    media_info_() { type = kNone; };
 } MediaInfo;
 #endif

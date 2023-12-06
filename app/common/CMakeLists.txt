@@ -1,7 +1,7 @@
 set(Sources
 	${Sources}
 	common/singleton.h
-	common/def.h
+	common/avdef.h
 	common/media_info.h
 	common/base_interface.h
 	common/base_interface.cc

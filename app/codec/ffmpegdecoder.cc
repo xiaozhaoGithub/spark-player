@@ -1,30 +1,26 @@
 #include "ffmpegdecoder.h"
 
-#include <QImage>
-
 #include "common/singleton.h"
 #include "config/config.h"
 #include "spdlog/spdlog.h"
 #include "widget/video_display/video_display_widget.h"
 
-FFmpegDecoder::FFmpegDecoder(QObject* parent)
-    : QObject(parent)
-    , fmt_ctx_(nullptr)
+FFmpegDecoder::FFmpegDecoder()
+    : fmt_ctx_(nullptr)
     , codec_ctx_(nullptr)
     , sws_ctx_(nullptr)
-    , stream_(nullptr)
+    , video_stream_(nullptr)
     , packet_(nullptr)
     , frame_(nullptr)
     , hw_frame_(nullptr)
     , hw_dev_ctx_(nullptr)
-    , image_buf_(nullptr)
 {
     InitDecodeParams();
 
     // Find hardware codec devices.
     AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
     while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
-        hw_devices.push_back(type);
+        hw_devices_.push_back(type);
     }
 
     // Register input device.
@@ -34,16 +30,6 @@ FFmpegDecoder::FFmpegDecoder(QObject* parent)
 FFmpegDecoder::~FFmpegDecoder()
 {
     Close();
-}
-
-void FFmpegDecoder::set_media(const MediaInfo& media)
-{
-    media_.reset(new MediaInfo(media));
-}
-
-MediaInfo* FFmpegDecoder::media()
-{
-    return media_.get();
 }
 
 bool FFmpegDecoder::Open()
@@ -89,21 +75,19 @@ bool FFmpegDecoder::Open()
         return false;
     }
 
-    stream_ = fmt_ctx_->streams[video_index];
-    video_resolution_.setWidth(stream_->codecpar->width);
-    video_resolution_.setHeight(stream_->codecpar->height);
+    video_stream_ = fmt_ctx_->streams[video_index];
 
-    frame_rate_ = av_q2d(stream_->avg_frame_rate);
-    frame_num_ = stream_->nb_frames;
+    frame_rate_ = av_q2d(video_stream_->avg_frame_rate);
+    frame_num_ = video_stream_->nb_frames;
 
-    const AVCodec* codec = avcodec_find_decoder(stream_->codecpar->codec_id);
+    const AVCodec* codec = avcodec_find_decoder(video_stream_->codecpar->codec_id);
     if (!codec) {
         SPDLOG_ERROR("Failed to find Codec.");
         return false;
     }
     SPDLOG_INFO("resolution: [w:{0}, h:{1}] frame rate:{2} total frames:{3} codec name:{4}",
-                video_resolution_.width(), video_resolution_.height(), frame_rate_, frame_num_,
-                codec->name);
+                video_stream_->codecpar->width, video_stream_->codecpar->height, frame_rate_,
+                frame_num_, codec->name);
 
     codec_ctx_ = avcodec_alloc_context3(codec);
     if (!codec_ctx_) {
@@ -111,7 +95,7 @@ bool FFmpegDecoder::Open()
         return false;
     }
 
-    error_code = avcodec_parameters_to_context(codec_ctx_, stream_->codecpar);
+    error_code = avcodec_parameters_to_context(codec_ctx_, video_stream_->codecpar);
     if (error_code < 0) {
         SPDLOG_ERROR("Failed to fill the codec context.");
         return false;
@@ -139,10 +123,50 @@ bool FFmpegDecoder::Open()
         av_dict_free(&dict);
     }
 
-    bool is_alloc = AllocResource();
-    end_ = !is_alloc;
+    if (!AllocResource()) {
+        return false;
+    }
 
-    return is_alloc;
+    int src_w = codec_ctx_->width;
+    int src_h = codec_ctx_->height;
+
+    int dst_w = src_w >> 2 << 2;
+    int dst_h = src_h;
+
+    std::string dst_pix_fmt_str =
+        Singleton<Config>::Instance()->AppConfigData("video_param", "dst_pix_fmt").toString().toStdString();
+
+    AVPixelFormat dst_pix_fmt = AV_PIX_FMT_YUV420P;
+    if (!dst_pix_fmt_str.empty()) {
+        if (dst_pix_fmt_str.compare("YUV") == 0) {
+            dst_pix_fmt = AV_PIX_FMT_YUV420P;
+        } else if (dst_pix_fmt_str.compare("RGB") == 0) {
+            dst_pix_fmt = AV_PIX_FMT_RGB24;
+        }
+    }
+
+    if (!sws_ctx_) {
+        sws_ctx_ = sws_getContext(src_w, src_h, codec_ctx_->pix_fmt, dst_w, dst_h, dst_pix_fmt,
+                                  SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
+        if (!sws_ctx_) {
+            SPDLOG_ERROR("Failed to get sws context.");
+            return false;
+        }
+    }
+
+    int y_size = dst_w * dst_h;
+    if (dst_pix_fmt == AV_PIX_FMT_YUV420P) {
+        data_[0] = reinterpret_cast<uint8_t*>(decode_frame_.buf_.base);
+        data_[1] = data_[0] + y_size;
+        data_[2] = data_[1] + y_size / 4;
+        decode_frame_.buf_.len = y_size * 3 / 2;
+
+    } else {
+        data_[0] = reinterpret_cast<uint8_t*>(decode_frame_.buf_.base);
+        decode_frame_.buf_.len = y_size * 3;
+    }
+
+    return true;
 }
 
 void FFmpegDecoder::Close()
@@ -158,21 +182,21 @@ int FFmpegDecoder::GetPacket(AVPacket* pkt)
     do {
         av_packet_unref(pkt);
         ret = av_read_frame(fmt_ctx_, pkt);
-    } while (pkt->stream_index != stream_->index && ret >= 0);
+    } while (pkt->stream_index != video_stream_->index && ret >= 0);
 
     return ret;
 }
 
-AVFrame* FFmpegDecoder::GetFrame()
+DecodeFrame* FFmpegDecoder::GetFrame()
 {
     if (!fmt_ctx_)
         return nullptr;
 
     int ret = GetPacket(packet_);
     if (ret == 0) {
-        if (packet_->stream_index == stream_->index) {
-            packet_->pts = qRound64(packet_->pts * (1000 * av_q2d(stream_->time_base)));
-            packet_->dts = qRound64(packet_->dts * (1000 * av_q2d(stream_->time_base)));
+        if (packet_->stream_index == video_stream_->index) {
+            packet_->pts = qRound64(packet_->pts * (1000 * av_q2d(video_stream_->time_base)));
+            packet_->dts = qRound64(packet_->dts * (1000 * av_q2d(video_stream_->time_base)));
 
             if (avcodec_send_packet(codec_ctx_, packet_) != 0) {
                 FFmpegError(ret);
@@ -207,30 +231,15 @@ AVFrame* FFmpegDecoder::GetFrame()
         }
     }
 
-    pts_ = tmp_frame->pts;
-
-    if (!sws_ctx_) {
-        sws_ctx_ = sws_getContext(tmp_frame->width, tmp_frame->height,
-                                  static_cast<AVPixelFormat>(tmp_frame->format),
-                                  video_resolution_.width(), video_resolution_.height(),
-                                  AV_PIX_FMT_RGBA, SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
-        if (!sws_ctx_) {
-            SPDLOG_ERROR("Failed to get sws context.");
-            return nullptr;
-        }
+    int out_h = sws_scale(sws_ctx_, tmp_frame->data, tmp_frame->linesize, 0, tmp_frame->height,
+                          data_, linesize_);
+    if (out_h <= 0 || out_h != tmp_frame->height) {
+        return nullptr;
     }
+    decode_frame_.w = tmp_frame->width;
+    decode_frame_.h = tmp_frame->height;
 
-    // int linesizes[4];
-    // av_image_fill_linesizes(linesizes, AV_PIX_FMT_RGBA, tmp_frame->width);
-
-    // uint8_t* image_buf[] = {image_buf_};
-    // sws_scale(sws_ctx_, tmp_frame->data, tmp_frame->linesize, 0, tmp_frame->height, image_buf,
-    //          linesizes);
-
-    // QImage image(image_buf_, tmp_frame->width, tmp_frame->height, QImage::Format_RGBA8888);
-    // av_frame_unref(tmp_frame);
-
-    return tmp_frame;
+    return &decode_frame_;
 }
 
 void FFmpegDecoder::FFmpegError(int error_code)
@@ -258,11 +267,6 @@ bool FFmpegDecoder::AllocResource()
         SPDLOG_ERROR("Failed to alloc hw frame.");
         return false;
     }
-
-    int size = av_image_get_buffer_size(AV_PIX_FMT_RGBA, video_resolution_.width(),
-                                        video_resolution_.height(), 4);
-
-    image_buf_ = new uint8_t[size];
 
     return true;
 }
@@ -296,11 +300,6 @@ void FFmpegDecoder::FreeResource()
 
     if (hw_dev_ctx_) {
         av_buffer_unref(&hw_dev_ctx_);
-    }
-
-    if (image_buf_) {
-        delete[] image_buf_;
-        image_buf_ = nullptr;
     }
 }
 
@@ -342,9 +341,7 @@ void FFmpegDecoder::InitDecodeParams()
     video_duration_ = 0;
     frame_rate_ = 0.0;
     frame_num_ = 0;
-    video_resolution_ = QSize(0, 0);
     end_ = true;
-    pts_ = 0;
 }
 
 void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
@@ -357,7 +354,8 @@ void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
         }
 
         if (hw_config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) {
-            if (hw_devices.contains(hw_config->device_type)) {
+            auto iter = std::find(hw_devices_.begin(), hw_devices_.end(), hw_config->device_type);
+            if (iter != hw_devices_.end()) {
                 int ret =
                     av_hwdevice_ctx_create(&hw_dev_ctx_, hw_config->device_type, nullptr, nullptr, 0);
                 if (ret != 0) {

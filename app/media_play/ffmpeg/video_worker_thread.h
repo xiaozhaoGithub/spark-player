@@ -10,29 +10,23 @@
 #include "codec/ffmpegdecoder.h"
 #include "codec/ffmpegwriter.h"
 #include "common/media_info.h"
+#include "media_play/video_player.h"
 
-class VideoWorkerThread : public QThread
+class FFVideoPlayer : public VideoPlayer, public QThread
 {
     Q_OBJECT
 public:
-    explicit VideoWorkerThread(QObject* parent = nullptr);
-    ~VideoWorkerThread();
+    explicit FFVideoPlayer(QObject* parent = nullptr);
+    ~FFVideoPlayer();
 
-    enum VideoPlayState
-    {
-        kPlaying,
-        kPause,
-        kStop
-    };
-
-    inline void set_media(const MediaInfo& media);
+    void set_media(const MediaInfo& media) { decoder_->set_media(media); }
 
     inline VideoPlayState playstate();
     inline void set_playstate(VideoPlayState state);
 
-    void Open();
-    void Pause();
-    void Stop();
+    void Open() override;
+    void Pause() override;
+    void Stop() override;
 
     void StartRecord();
     void StopRecord();
@@ -56,19 +50,14 @@ private:
     VideoPlayState playstate_;
 };
 
-inline VideoWorkerThread::VideoPlayState VideoWorkerThread::playstate()
+inline FFVideoPlayer::VideoPlayState FFVideoPlayer::playstate()
 {
     return playstate_;
 }
 
-inline void VideoWorkerThread::set_playstate(VideoPlayState state)
+inline void FFVideoPlayer::set_playstate(VideoPlayState state)
 {
     playstate_ = state;
-}
-
-inline void VideoWorkerThread::set_media(const MediaInfo& media)
-{
-    decoder_->set_media(media);
 }
 
 #endif

@@ -1,15 +1,16 @@
 #include "video_surface_gl.h"
 
-#include "spdlog/spdlog.h"
 #include <QOpenGLShaderProgram>
+
+#include "media_play/video_player_factory.h"
+#include "spdlog/spdlog.h"
 
 VideoSurfaceGL::VideoSurfaceGL(QWidget* parent)
     : QOpenGLWidget(parent)
 {
-    video_thread_ = new VideoWorkerThread(this);
-    connect(video_thread_, &VideoWorkerThread::SendFrame, this, &VideoSurfaceGL::ProcessFrame);
-    connect(video_thread_, &VideoWorkerThread::PlayState, this, &VideoSurfaceGL::PlayState);
-    connect(video_thread_, &VideoWorkerThread::RecordState, this, &VideoSurfaceGL::RecordState);
+    video_player_ = VideoPlayerFactory::Create(kFile);
+    connect(video_player_, &VideoWorkerThread::PlayState, this, &VideoSurfaceGL::PlayState);
+    connect(video_player_, &VideoWorkerThread::RecordState, this, &VideoSurfaceGL::RecordState);
 
     InitMenu();
 }
@@ -18,32 +19,32 @@ VideoSurfaceGL::~VideoSurfaceGL() {}
 
 void VideoSurfaceGL::Open()
 {
-    video_thread_->Open();
+    video_player_->Open();
 }
 
 void VideoSurfaceGL::Pause()
 {
-    video_thread_->Pause();
+    video_player_->Pause();
 }
 
 void VideoSurfaceGL::Stop()
 {
-    video_thread_->Stop();
+    video_player_->Stop();
 }
 
 void VideoSurfaceGL::StartRecord()
 {
-    video_thread_->StartRecord();
+    video_player_->StartRecord();
 }
 
 void VideoSurfaceGL::StopRecord()
 {
-    video_thread_->StopRecord();
+    video_player_->StopRecord();
 }
 
 void VideoSurfaceGL::set_media(const MediaInfo& media)
 {
-    video_thread_->set_media(media);
+    video_player_->set_media(media);
 }
 
 void VideoSurfaceGL::ProcessFrame(AVFrame* frame)
