@@ -129,7 +129,7 @@ public:
     void push_front(void* ptr, size_t len)
     {
         if (len > this->len - _size) {
-            size_t newsize = std::max(this->len, len) * 2;
+            size_t newsize = (std::max)(this->len, len) * 2;
             base = (char*)safe_realloc(base, newsize, this->len);
             this->len = newsize;
         }
@@ -148,7 +148,7 @@ public:
     void push_back(void* ptr, size_t len)
     {
         if (len > this->len - _size) {
-            size_t newsize = std::max(this->len, len) * 2;
+            size_t newsize = (std::max)(this->len, len) * 2;
             base = (char*)safe_realloc(base, newsize, this->len);
             this->len = newsize;
         } else if (len > this->len - _offset - _size) {

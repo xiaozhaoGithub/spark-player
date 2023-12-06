@@ -13,14 +13,13 @@ public:
         switch (type) {
         case kFile:
         case kNetwork:
-        case kCapture: {
+        case kCapture:
             return new FFVideoPlayer;
-        }
-        case kNone: {
+        case kNone:
+        default:
             return nullptr;
         }
-        }
-    };
-}
+    }
+};
 
 #endif

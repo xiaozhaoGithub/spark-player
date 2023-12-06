@@ -14,7 +14,7 @@ extern "C"
 #include <libswscale/swscale.h>
 }
 
-#include "render/opengl/video_surface_gl.h"
+#include "render/opengl/render_wnd_gl.h"
 #include "render/qpainter/video_player_widget.h"
 #include "widget/common/widgets.h"
 
@@ -40,7 +40,7 @@ private slots:
 
 private:
     // VideoPlayerWidget* player_;
-    VideoSurfaceGL* player_;
+    RenderWndGL* player_;
 
     FolderLineEdit* file_edit_;
     QPushButton* play_btn_;

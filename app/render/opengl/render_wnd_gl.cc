@@ -1,61 +1,63 @@
-#include "video_surface_gl.h"
+#include "render_wnd_gl.h"
 
 #include <QOpenGLShaderProgram>
 
 #include "media_play/video_player_factory.h"
 #include "spdlog/spdlog.h"
 
-VideoSurfaceGL::VideoSurfaceGL(QWidget* parent)
+RenderWndGL::RenderWndGL(QWidget* parent)
     : QOpenGLWidget(parent)
 {
-    video_player_ = VideoPlayerFactory::Create(kFile);
-    connect(video_player_, &VideoWorkerThread::PlayState, this, &VideoSurfaceGL::PlayState);
-    connect(video_player_, &VideoWorkerThread::RecordState, this, &VideoSurfaceGL::RecordState);
-
-    InitMenu();
+    InitUi();
 }
 
-VideoSurfaceGL::~VideoSurfaceGL() {}
+RenderWndGL::~RenderWndGL() {}
 
-void VideoSurfaceGL::Open()
+void RenderWndGL::Open()
 {
     video_player_->Open();
 }
 
-void VideoSurfaceGL::Pause()
+void RenderWndGL::Pause()
 {
     video_player_->Pause();
 }
 
-void VideoSurfaceGL::Stop()
+void RenderWndGL::Stop()
 {
     video_player_->Stop();
 }
 
-void VideoSurfaceGL::StartRecord()
+void RenderWndGL::StartRecord()
 {
-    video_player_->StartRecord();
+    // video_player_->StartRecord();
 }
 
-void VideoSurfaceGL::StopRecord()
+void RenderWndGL::StopRecord()
 {
-    video_player_->StopRecord();
+    // video_player_->StopRecord();
 }
 
-void VideoSurfaceGL::set_media(const MediaInfo& media)
+void RenderWndGL::set_media(const MediaInfo& media)
 {
     video_player_->set_media(media);
 }
 
-void VideoSurfaceGL::ProcessFrame(AVFrame* frame)
+void RenderWndGL::OnRender()
 {
-    if (!frame || frame->width == 0 || frame->height == 0)
+    DecodeFrame frame;
+    video_player_->pop_frame(&frame);
+}
+
+void RenderWndGL::ProcessFrame(const DecodeFrame& frame)
+{
+    if (frame.w == 0 || frame.h == 0)
         return;
 
-    int tex_width = frame->width;
-    int tex_height = frame->height;
+    int tex_width = frame.w;
+    int tex_height = frame.h;
 
-    format_ = frame->format;
+    format_ = frame.format;
     switch (format_) {
     case AV_PIX_FMT_YUV420P:
     case AV_PIX_FMT_YUVJ420P: {
@@ -76,12 +78,11 @@ void VideoSurfaceGL::ProcessFrame(AVFrame* frame)
     default:
         break;
     }
-    av_frame_unref(frame);
 
     update();
 }
 
-void VideoSurfaceGL::FullScreenClicked()
+void RenderWndGL::FullScreenClicked()
 {
     if (isFullScreen())
         return;
@@ -92,7 +93,7 @@ void VideoSurfaceGL::FullScreenClicked()
     QMetaObject::invokeMethod(this, "showFullScreen", Qt::QueuedConnection);
 }
 
-void VideoSurfaceGL::ExitFullScreenClicked()
+void RenderWndGL::ExitFullScreenClicked()
 {
     if (!isFullScreen())
         return;
@@ -101,7 +102,7 @@ void VideoSurfaceGL::ExitFullScreenClicked()
     showNormal();
 }
 
-void VideoSurfaceGL::initializeGL()
+void RenderWndGL::initializeGL()
 {
     auto shader_program = std::make_shared<QOpenGLShaderProgram>();
     shader_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/res/shaders/yuv2rgb.vert");
@@ -117,14 +118,14 @@ void VideoSurfaceGL::initializeGL()
     initializeOpenGLFunctions();
 }
 
-void VideoSurfaceGL::resizeGL(int w, int h)
+void RenderWndGL::resizeGL(int w, int h)
 {
     QOpenGLWidget::resizeGL(w, h);
 
     renderer_->SetSize(QVector2D(w, h));
 }
 
-void VideoSurfaceGL::paintGL()
+void RenderWndGL::paintGL()
 {
     switch (format_) {
     case AV_PIX_FMT_YUV420P:
@@ -142,21 +143,34 @@ void VideoSurfaceGL::paintGL()
     }
 }
 
-void VideoSurfaceGL::contextMenuEvent(QContextMenuEvent* event)
+void RenderWndGL::contextMenuEvent(QContextMenuEvent* event)
 {
     QWidget::contextMenuEvent(event);
 
     menu_->popup(mapToGlobal(event->pos()));
 }
 
-void VideoSurfaceGL::InitMenu()
+void RenderWndGL::InitUi()
 {
-    menu_ = new QMenu(this);
-    menu_->addAction(tr("Full Screen"), this, &VideoSurfaceGL::FullScreenClicked);
-    menu_->addAction(tr("Exit Full Screen"), this, &VideoSurfaceGL::ExitFullScreenClicked);
+    video_player_ = VideoPlayerFactory::Create(kFile);
+    /*  connect(video_player_, &VideoWorkerThread::PlayState, this, &RenderWndGL::PlayState);
+      connect(video_player_, &VideoWorkerThread::RecordState, this, &RenderWndGL::RecordState);*/
+
+    InitMenu();
+
+    render_timer_ = new QTimer(this);
+    render_timer_->setTimerType(Qt::PreciseTimer);
+    connect(render_timer_, &QTimer::timeout, this, &RenderWndGL::OnRender);
 }
 
-void VideoSurfaceGL::ReallocTex(QOpenGLTexturePtr tex, int type, int width, int height, int depth)
+void RenderWndGL::InitMenu()
+{
+    menu_ = new QMenu(this);
+    menu_->addAction(tr("Full Screen"), this, &RenderWndGL::FullScreenClicked);
+    menu_->addAction(tr("Exit Full Screen"), this, &RenderWndGL::ExitFullScreenClicked);
+}
+
+void RenderWndGL::ReallocTex(QOpenGLTexturePtr tex, int type, int width, int height, int depth)
 {
     tex->setSize(width, height);
     tex->setMinMagFilters(QOpenGLTexture::LinearMipMapLinear, QOpenGLTexture::Linear);
@@ -164,15 +178,15 @@ void VideoSurfaceGL::ReallocTex(QOpenGLTexturePtr tex, int type, int width, int 
     tex->allocateStorage();
 }
 
-void VideoSurfaceGL::ResetTexYuv(AVFrame* frame, int type, int width, int height)
+void RenderWndGL::ResetTexYuv(const DecodeFrame& frame, int type, int width, int height)
 {
-    if (frame->width != frame_size_.width() || frame->height != frame_size_.height()) {
+    if (frame.w != frame_size_.width() || frame.h != frame_size_.height()) {
         FreeTexYuv();
     }
 
     if (!y_tex_) {
         y_tex_ = std::make_shared<QOpenGLTexture>(QOpenGLTexture::Target2D);
-        ReallocTex(y_tex_, QOpenGLTexture::R8_UNorm, frame->width, frame->height);
+        ReallocTex(y_tex_, QOpenGLTexture::R8_UNorm, frame.w, frame.h);
     }
     if (!u_tex_) {
         u_tex_ = std::make_shared<QOpenGLTexture>(QOpenGLTexture::Target2D);
@@ -183,57 +197,57 @@ void VideoSurfaceGL::ResetTexYuv(AVFrame* frame, int type, int width, int height
         ReallocTex(v_tex_, QOpenGLTexture::R8_UNorm, width, height);
     }
 
-    frame_size_.setWidth(frame->width);
-    frame_size_.setHeight(frame->height);
+    frame_size_.setWidth(frame.w);
+    frame_size_.setHeight(frame.h);
 
-    pix_transfer_opts_.setImageHeight(frame->height);
+    pix_transfer_opts_.setImageHeight(frame.h);
 
-    pix_transfer_opts_.setRowLength(frame->linesize[0]);
-    y_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame->data[0], &pix_transfer_opts_);
+    pix_transfer_opts_.setRowLength(frame.linesize[0]);
+    y_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.data[0], &pix_transfer_opts_);
 
-    pix_transfer_opts_.setRowLength(frame->linesize[1]);
-    u_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame->data[1], &pix_transfer_opts_);
+    pix_transfer_opts_.setRowLength(frame.linesize[1]);
+    u_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.data[1], &pix_transfer_opts_);
 
-    pix_transfer_opts_.setRowLength(frame->linesize[2]);
-    v_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame->data[2], &pix_transfer_opts_);
+    pix_transfer_opts_.setRowLength(frame.linesize[2]);
+    v_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.data[2], &pix_transfer_opts_);
 }
 
-void VideoSurfaceGL::ResetTexNV12(AVFrame* frame)
+void RenderWndGL::ResetTexNV12(const DecodeFrame& frame)
 {
-    if (frame->width != frame_size_.width() || frame->height != frame_size_.height()) {
+    if (frame.w != frame_size_.width() || frame.h != frame_size_.height()) {
         FreeTexNV12();
     }
 
     if (!y_tex_) {
         y_tex_ = std::make_shared<QOpenGLTexture>(QOpenGLTexture::Target2D);
-        ReallocTex(y_tex_, QOpenGLTexture::R8_UNorm, frame->width, frame->height);
+        ReallocTex(y_tex_, QOpenGLTexture::R8_UNorm, frame.w, frame.h);
     }
     if (!uv_tex_) {
         uv_tex_ = std::make_shared<QOpenGLTexture>(QOpenGLTexture::Target2D);
-        ReallocTex(uv_tex_, QOpenGLTexture::RG8_UNorm, frame->width / 2, frame->height / 2);
+        ReallocTex(uv_tex_, QOpenGLTexture::RG8_UNorm, frame.w / 2, frame.h / 2);
     }
 
-    frame_size_.setWidth(frame->width);
-    frame_size_.setHeight(frame->height);
+    frame_size_.setWidth(frame.w);
+    frame_size_.setHeight(frame.h);
 
-    pix_transfer_opts_.setImageHeight(frame->height);
-    pix_transfer_opts_.setRowLength(frame->linesize[0]);
-    y_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame->data[0], &pix_transfer_opts_);
+    pix_transfer_opts_.setImageHeight(frame.h);
+    pix_transfer_opts_.setRowLength(frame.linesize[0]);
+    y_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.data[0], &pix_transfer_opts_);
 
-    // pix_transfer_opts_.setImageHeight(frame->height / 2);
-    pix_transfer_opts_.setRowLength(frame->linesize[1] / 2); // uv interleaved
+    // pix_transfer_opts_.setImageHeight(frame.h/ 2);
+    pix_transfer_opts_.setRowLength(frame.linesize[1] / 2); // uv interleaved
 
-    uv_tex_->setData(QOpenGLTexture::RG, QOpenGLTexture::UInt8, frame->data[1], &pix_transfer_opts_);
+    uv_tex_->setData(QOpenGLTexture::RG, QOpenGLTexture::UInt8, frame.data[1], &pix_transfer_opts_);
 }
 
-void VideoSurfaceGL::FreeTexYuv()
+void RenderWndGL::FreeTexYuv()
 {
     y_tex_.reset();
     u_tex_.reset();
     v_tex_.reset();
 }
 
-void VideoSurfaceGL::FreeTexNV12()
+void RenderWndGL::FreeTexNV12()
 {
     y_tex_.reset();
     uv_tex_.reset();

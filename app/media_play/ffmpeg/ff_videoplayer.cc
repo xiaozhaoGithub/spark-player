@@ -29,6 +29,8 @@ void FFVideoPlayer::Open()
         return;
     }
 
+    decoder_->set_media(media());
+
     start();
 }
 
@@ -42,7 +44,12 @@ void FFVideoPlayer::Stop()
     set_playstate(FFVideoPlayer::kStop);
 }
 
-void FFVideoPlayer::Resume() {}
+void FFVideoPlayer::Resume()
+{
+    if (playstate() == FFVideoPlayer::kPause) {
+        set_playstate(FFVideoPlayer::kPlaying);
+    }
+}
 
 void FFVideoPlayer::StartRecord()
 {
@@ -51,22 +58,17 @@ void FFVideoPlayer::StartRecord()
         + QString("video_record_%1.mp4").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss"));
 
     MediaInfo media;
-    media.type = decoder_->media()->type;
+    media.type = decoder_->media().type;
     media.src = filename.toStdString();
-    // media.type = kCapture;
-    // media.src = "desktop";
 
     writer_->set_media(media);
-
-    if (writer_->Open(decoder_->video_stream())) {
-        emit RecordState(true);
-    }
+    writer_->Open(decoder_->video_stream());
 }
 
 void FFVideoPlayer::StopRecord()
 {
     writer_->Close();
-    emit RecordState(false);
+    // emit RecordState(false);
 }
 
 void FFVideoPlayer::run()
@@ -75,11 +77,7 @@ void FFVideoPlayer::run()
     if (!ret)
         return;
 
-    emit PlayState(true);
-
     playstate_ = kPlaying;
-    elapsed_timer_.start();
-
     while (playstate_ != kStop) {
         while (playstate_ == kPause) {
             QThread::msleep(200);
@@ -87,14 +85,12 @@ void FFVideoPlayer::run()
 
         DecodeFrame* frame = decoder_->GetFrame();
         if (frame) {
-            if (decoder_->media()->type != kCapture) {
-                int ms = decoder_->pts() - elapsed_timer_.elapsed();
-                if (ms > 0) {
-                    QThread::msleep(ms);
-                }
-            }
             // writer_->Write(frame);
+            int per_frame_ms = 1000 / frame->fps;
             push_frame(frame);
+
+            /*    std::chrono::time_point();
+                std::this_thread::sleep_until();*/
         } else {
             if (decoder_->is_end()) {
                 playstate_ = kStop;
@@ -105,6 +101,4 @@ void FFVideoPlayer::run()
 
     decoder_->Close();
     writer_->Close();
-
-    emit PlayState(false);
 }

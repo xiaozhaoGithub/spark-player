@@ -14,7 +14,6 @@
 
 class FFVideoPlayer : public VideoPlayer, public QThread
 {
-    Q_OBJECT
 public:
     explicit FFVideoPlayer(QObject* parent = nullptr);
     ~FFVideoPlayer();
@@ -30,19 +29,12 @@ public:
     void StartRecord();
     void StopRecord();
 
-signals:
-    void UpdateImage(const QImage& image);
-    void PlayState(bool state);
-    void RecordState(bool state);
-
 protected:
     void run() override;
 
 private:
     std::unique_ptr<FFmpegDecoder> decoder_;
     std::unique_ptr<FFmpegWriter> writer_;
-
-    QTime elapsed_timer_;
 
     QByteArray filename_;
     VideoPlayState playstate_;

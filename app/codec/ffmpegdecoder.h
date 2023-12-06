@@ -21,8 +21,8 @@ public:
     explicit FFmpegDecoder();
     ~FFmpegDecoder();
 
-    void set_media(const MediaInfo& media) { media_.reset(new MediaInfo(media)); }
-    MediaInfo* media() { return media_.get(); }
+    void set_media(const MediaInfo& media) { media_ = media; }
+    MediaInfo media() { return media_; }
 
     bool Open();
     void Close();
@@ -46,7 +46,7 @@ private:
     static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* fmt);
 
 private:
-    std::unique_ptr<MediaInfo> media_;
+    MediaInfo media_;
 
     AVFormatContext* fmt_ctx_;
     AVCodecContext* codec_ctx_;
@@ -61,7 +61,7 @@ private:
 
     DecodeFrame decode_frame_;
     uint8_t* data_[4];
-    int linesize_[AV_NUM_DATA_POINTERS];
+    int linesize_[4];
 
     int64_t video_duration_;
     double frame_rate_;

@@ -7,7 +7,7 @@
 class VideoPlayer
 {
 public:
-    explicit VideoPlayer();
+    VideoPlayer();
     virtual ~VideoPlayer();
 
     enum VideoPlayState

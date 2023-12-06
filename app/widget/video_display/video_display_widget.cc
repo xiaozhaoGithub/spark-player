@@ -5,10 +5,10 @@
 #include <QHBoxLayout>
 #include <QRadioButton>
 
-#include "codec/video_worker_thread.h"
 #include "common/singleton.h"
 #include "config/config.h"
 #include "dialog/media/open_media_dialog.h"
+#include "media_play/ffmpeg/ff_videoplayer.h"
 
 VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     : QWidget(parent)
@@ -22,9 +22,9 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     // player_ = new VideoPlayerWidget(this);
     // connect(player_, &VideoPlayerWidget::PlayState, this, &VideoDisplayWidget::PlayState);
 
-    player_ = new VideoSurfaceGL(this);
-    connect(player_, &VideoSurfaceGL::PlayState, this, &VideoDisplayWidget::PlayState);
-    connect(player_, &VideoSurfaceGL::RecordState, this, &VideoDisplayWidget::RecordState);
+    player_ = new RenderWndGL(this);
+    // connect(player_, &RenderWndGL::PlayState, this, &VideoDisplayWidget::PlayState);
+    // connect(player_, &RenderWndGL::RecordState, this, &VideoDisplayWidget::RecordState);
 
     auto fill_bg_wiget = new QWidget(this);
 

@@ -10,7 +10,7 @@
 #include <memory>
 #include <mutex>
 
-#include "codec/video_worker_thread.h"
+#include "media_play/ffmpeg/ff_videoplayer.h"
 
 class VideoPlayerWidget : public QWidget
 {
@@ -43,7 +43,7 @@ private slots:
 private:
     std::mutex mutex_;
     QPixmap pixmap_;
-    VideoWorkerThread* video_thread_;
+    VideoPlayer* video_player_;
 
     int divide_num_;
 

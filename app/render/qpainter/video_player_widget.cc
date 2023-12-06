@@ -1,12 +1,14 @@
 #include "video_player_widget.h"
 
+#include "media_play/video_player_factory.h"
+
 VideoPlayerWidget::VideoPlayerWidget(QWidget* parent)
     : QWidget(parent)
     , divide_num_(1)
 {
-    video_thread_ = new VideoWorkerThread(this);
-    connect(video_thread_, &VideoWorkerThread::UpdateImage, this, &VideoPlayerWidget::UpdateImage);
-    connect(video_thread_, &VideoWorkerThread::PlayState, this, &VideoPlayerWidget::PlayState);
+    video_player_ = VideoPlayerFactory::Create(kFile);
+    // connect(video_player_, &VideoWorkerThread::UpdateImage, this, &VideoPlayerWidget::UpdateImage);
+    // connect(video_player_, &VideoWorkerThread::PlayState, this, &VideoPlayerWidget::PlayState);
 
     InitMenu();
 }
@@ -15,17 +17,17 @@ VideoPlayerWidget::~VideoPlayerWidget() {}
 
 void VideoPlayerWidget::Open(const char* name)
 {
-    video_thread_->Open();
+    video_player_->Open();
 }
 
 void VideoPlayerWidget::Pause()
 {
-    video_thread_->Pause();
+    video_player_->Pause();
 }
 
 void VideoPlayerWidget::Stop()
 {
-    video_thread_->Stop();
+    video_player_->Stop();
 }
 
 void VideoPlayerWidget::set_pixmap(const QPixmap& pixmap)

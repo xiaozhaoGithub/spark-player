@@ -1,3 +1,5 @@
+#include "base_interface.h"
+
 #include <atomic>
 
 static std::atomic<uint64_t> alloc_cnt_ = 0;

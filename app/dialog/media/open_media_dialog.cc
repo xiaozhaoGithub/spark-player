@@ -5,7 +5,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-#include "common/def.h"
+#include "common/avdef.h"
 
 OpenMediaDialog::OpenMediaDialog(QWidget* parent)
     : ConfirmDialog(parent)

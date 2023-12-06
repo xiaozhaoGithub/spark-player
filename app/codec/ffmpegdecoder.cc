@@ -34,9 +34,6 @@ FFmpegDecoder::~FFmpegDecoder()
 
 bool FFmpegDecoder::Open()
 {
-    if (!media_)
-        return false;
-
     std::string url;
     AVInputFormat* input_fmt = nullptr;
     if (!InitInputFmtParams(url, &input_fmt))
@@ -154,17 +151,23 @@ bool FFmpegDecoder::Open()
         }
     }
 
+    // Default alloc
+    decode_frame_.buf.resize(dst_w * dst_h * 4);
+
     int y_size = dst_w * dst_h;
     if (dst_pix_fmt == AV_PIX_FMT_YUV420P) {
-        data_[0] = reinterpret_cast<uint8_t*>(decode_frame_.buf_.base);
+        data_[0] = reinterpret_cast<uint8_t*>(decode_frame_.buf.base);
         data_[1] = data_[0] + y_size;
         data_[2] = data_[1] + y_size / 4;
-        decode_frame_.buf_.len = y_size * 3 / 2;
+        decode_frame_.buf.len = y_size * 3 / 2;
 
     } else {
-        data_[0] = reinterpret_cast<uint8_t*>(decode_frame_.buf_.base);
-        decode_frame_.buf_.len = y_size * 3;
+        data_[0] = reinterpret_cast<uint8_t*>(decode_frame_.buf.base);
+        decode_frame_.buf.len = y_size * 3;
     }
+    decode_frame_.fps = static_cast<int>(av_q2d(codec_ctx_->framerate));
+
+    end_ = false;
 
     return true;
 }
@@ -203,7 +206,7 @@ DecodeFrame* FFmpegDecoder::GetFrame()
             }
         }
     } else if (ret == AVERROR_EOF) {
-        avcodec_send_packet(codec_ctx_, nullptr); // Send null packet to represent end.
+        avcodec_send_packet(codec_ctx_, nullptr); // Flush decoder
     } else {
         FFmpegError(ret);
     }
@@ -238,6 +241,7 @@ DecodeFrame* FFmpegDecoder::GetFrame()
     }
     decode_frame_.w = tmp_frame->width;
     decode_frame_.h = tmp_frame->height;
+    decode_frame_.format = tmp_frame->format;
 
     return &decode_frame_;
 }
@@ -305,7 +309,7 @@ void FFmpegDecoder::FreeResource()
 
 bool FFmpegDecoder::InitInputFmtParams(std::string& url, AVInputFormat** fmt)
 {
-    switch (media_->type) {
+    switch (media_.type) {
     case kCapture: {
 #if defined(Q_OS_WIN)
         // You can't turn on the webcam if you don't have it on Windows
@@ -320,16 +324,16 @@ bool FFmpegDecoder::InitInputFmtParams(std::string& url, AVInputFormat** fmt)
             return false;
         }
 
-        url = "video=" + media_->src;
+        url = "video=" + media_.src;
         break;
     }
     case kFile:
     case kNetwork: {
-        url = media_->src;
+        url = media_.src;
         break;
     }
     default:
-        SPDLOG_ERROR("Failed to open this media type {0}.", (int)media_->type);
+        SPDLOG_ERROR("Failed to open this media type {0}.", (int)media_.type);
         return false;
     }
 

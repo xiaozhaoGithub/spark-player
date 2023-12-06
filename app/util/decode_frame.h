@@ -1,5 +1,5 @@
-#ifndef DECODE_FRAME_H_
-#define DECODE_FRAME_H_
+#ifndef DECODE_FRAME_h
+#define DECODE_FRAME_h
 
 #include "common/base_interface.h"
 #include "common/bufs.h"
@@ -7,25 +7,23 @@
 class DecodeFrame
 {
 public:
-    DecodeFrame();
-    ~DecodeFrame();
-
     void Copy(const DecodeFrame& frame)
     {
-        buf_.copy(frame.buf_.base, frame.buf_.len);
+        buf.copy(frame.buf.base, frame.buf.len);
         w = frame.w;
         h = frame.h;
+        fps = frame.fps;
+        format = frame.format;
     }
 
-    bool IsNull() { return w == 0 || h == 0 || buf_.isNull(); }
+    bool IsNull() { return w == 0 || h == 0 || buf.isNull(); }
 
 public:
-    HBuf buf_;
+    HBuf buf;
     int w;
     int h;
+    int fps;
+    int format;
 };
 
-DecodeFrame::DecodeFrame() {}
-
-DecodeFrame::~DecodeFrame() {}
 #endif

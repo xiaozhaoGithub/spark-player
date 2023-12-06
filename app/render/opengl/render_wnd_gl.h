@@ -1,5 +1,5 @@
-#ifndef VIDEO_SURFACE_GL_H_
-#define VIDEO_SURFACE_GL_H_
+#ifndef RENDER_WND_GL_H_
+#define RENDER_WND_GL_H_
 
 #include <QContextMenuEvent>
 #include <QMenu>
@@ -7,22 +7,23 @@
 #include <QOpenGLPixelTransferOptions>
 #include <QOpenGLTexture>
 #include <QOpenGLWidget>
+#include <QTimer>
 #include <QWidget>
 #include <memory>
 #include <mutex>
 
 #include "opengl_renderer.h"
 #include "common/media_info.h"
-#include "media_play/ffmpeg/video_worker_thread.h"
+#include "media_play/ffmpeg/ff_videoplayer.h"
+#include "render/render_wnd.h"
 
 using QOpenGLTexturePtr = std::shared_ptr<QOpenGLTexture>;
 
-class VideoSurfaceGL : public QOpenGLWidget, protected QOpenGLFunctions
+class RenderWndGL : public RenderWnd, public QOpenGLWidget, protected QOpenGLFunctions
 {
-    Q_OBJECT
 public:
-    explicit VideoSurfaceGL(QWidget* parent = nullptr);
-    ~VideoSurfaceGL();
+    explicit RenderWndGL(QWidget* parent = nullptr);
+    ~RenderWndGL();
 
     void Open();
     void Pause();
@@ -32,10 +33,6 @@ public:
 
     void set_media(const MediaInfo& media);
 
-signals:
-    void PlayState(bool playing);
-    void RecordState(bool recording);
-
 protected:
     void initializeGL() override;
     void resizeGL(int w, int h) override;
@@ -44,20 +41,23 @@ protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
 
 private:
+    void InitUi();
     void InitMenu();
     void ReallocTex(QOpenGLTexturePtr tex, int type, int width, int height = 1, int depth = 1);
-    void ResetTexYuv(AVFrame* frame, int type, int width, int height);
-    void ResetTexNV12(AVFrame* frame);
+    void ResetTexYuv(const DecodeFrame& frame, int type, int width, int height);
+    void ResetTexNV12(const DecodeFrame& frame);
     void FreeTexYuv();
     void FreeTexNV12();
 
 private slots:
-    void ProcessFrame(AVFrame* frame);
+    void OnRender();
+    void ProcessFrame(const DecodeFrame& frame);
     void FullScreenClicked();
     void ExitFullScreenClicked();
 
 private:
     VideoPlayer* video_player_;
+    QTimer* render_timer_;
     std::shared_ptr<OpenGLRenderer> renderer_;
 
     std::mutex mutex_;
