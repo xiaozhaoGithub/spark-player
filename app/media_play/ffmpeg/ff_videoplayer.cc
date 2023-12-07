@@ -89,8 +89,10 @@ void FFVideoPlayer::run()
             int per_frame_ms = 1000 / frame->fps;
             push_frame(frame);
 
-            /*    std::chrono::time_point();
-                std::this_thread::sleep_until();*/
+            auto now = std::chrono::system_clock::now();
+            auto ms = now + std::chrono::milliseconds(per_frame_ms);
+
+            std::this_thread::sleep_until(ms);
         } else {
             if (decoder_->is_end()) {
                 playstate_ = kStop;

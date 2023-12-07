@@ -154,18 +154,21 @@ bool FFmpegDecoder::Open()
     // Default alloc
     decode_frame_.buf.resize(dst_w * dst_h * 4);
 
-    int y_size = dst_w * dst_h;
     if (dst_pix_fmt == AV_PIX_FMT_YUV420P) {
+        int y_size = dst_w * dst_h;
+        decode_frame_.buf.len = y_size * 3 / 2;
         data_[0] = reinterpret_cast<uint8_t*>(decode_frame_.buf.base);
         data_[1] = data_[0] + y_size;
         data_[2] = data_[1] + y_size / 4;
-        decode_frame_.buf.len = y_size * 3 / 2;
-
+        linesize_[0] = dst_w;
+        linesize_[1] = dst_w / 2;
+        linesize_[2] = dst_w / 2;
     } else {
+        decode_frame_.buf.len = dst_w * dst_h * 3;
         data_[0] = reinterpret_cast<uint8_t*>(decode_frame_.buf.base);
-        decode_frame_.buf.len = y_size * 3;
+        linesize_[0] = dst_w * 3;
     }
-    decode_frame_.fps = static_cast<int>(av_q2d(codec_ctx_->framerate));
+    decode_frame_.fps = frame_rate_;
 
     end_ = false;
 

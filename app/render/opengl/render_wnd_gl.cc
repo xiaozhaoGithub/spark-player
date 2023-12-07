@@ -202,14 +202,18 @@ void RenderWndGL::ResetTexYuv(const DecodeFrame& frame, int type, int width, int
 
     pix_transfer_opts_.setImageHeight(frame.h);
 
-    pix_transfer_opts_.setRowLength(frame.linesize[0]);
-    y_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.data[0], &pix_transfer_opts_);
+    int y_size = frame.w * frame.h;
 
-    pix_transfer_opts_.setRowLength(frame.linesize[1]);
-    u_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.data[1], &pix_transfer_opts_);
+    pix_transfer_opts_.setRowLength(frame.w);
+    y_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.buf.base, &pix_transfer_opts_);
 
-    pix_transfer_opts_.setRowLength(frame.linesize[2]);
-    v_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.data[2], &pix_transfer_opts_);
+    pix_transfer_opts_.setRowLength(frame.w / 2);
+    u_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.buf.base + y_size,
+                    &pix_transfer_opts_);
+
+    pix_transfer_opts_.setRowLength(frame.w / 2);
+    v_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8,
+                    frame.buf.base + y_size + y_size / 4, &pix_transfer_opts_);
 }
 
 void RenderWndGL::ResetTexNV12(const DecodeFrame& frame)
@@ -231,13 +235,13 @@ void RenderWndGL::ResetTexNV12(const DecodeFrame& frame)
     frame_size_.setHeight(frame.h);
 
     pix_transfer_opts_.setImageHeight(frame.h);
-    pix_transfer_opts_.setRowLength(frame.linesize[0]);
-    y_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.data[0], &pix_transfer_opts_);
+    pix_transfer_opts_.setRowLength(frame.w);
+    y_tex_->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.buf.base, &pix_transfer_opts_);
 
     // pix_transfer_opts_.setImageHeight(frame.h/ 2);
-    pix_transfer_opts_.setRowLength(frame.linesize[1] / 2); // uv interleaved
+    // pix_transfer_opts_.setRowLength(frame.linesize[1] / 2); // uv interleaved
 
-    uv_tex_->setData(QOpenGLTexture::RG, QOpenGLTexture::UInt8, frame.data[1], &pix_transfer_opts_);
+    // uv_tex_->setData(QOpenGLTexture::RG, QOpenGLTexture::UInt8, frame.data[1], &pix_transfer_opts_);
 }
 
 void RenderWndGL::FreeTexYuv()
