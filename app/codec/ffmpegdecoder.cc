@@ -75,7 +75,7 @@ bool FFmpegDecoder::Open()
 
     video_stream_ = fmt_ctx_->streams[video_index];
 
-    frame_rate_ = static_cast<int>(av_q2d(video_stream_->avg_frame_rate));
+    fps_ = static_cast<int>(av_q2d(video_stream_->avg_frame_rate));
     frame_num_ = video_stream_->nb_frames;
 
     const AVCodec* codec = avcodec_find_decoder(video_stream_->codecpar->codec_id);
@@ -84,8 +84,8 @@ bool FFmpegDecoder::Open()
         return false;
     }
     SPDLOG_INFO("resolution: [w:{0}, h:{1}] frame rate:{2} total frames:{3} codec name:{4}",
-                video_stream_->codecpar->width, video_stream_->codecpar->height, frame_rate_,
-                frame_num_, codec->name);
+                video_stream_->codecpar->width, video_stream_->codecpar->height, fps_, frame_num_,
+                codec->name);
 
     codec_ctx_ = avcodec_alloc_context3(codec);
     if (!codec_ctx_) {
@@ -177,7 +177,6 @@ bool FFmpegDecoder::Open()
 
 void FFmpegDecoder::Close()
 {
-    InitDecodeParams();
     FreeResource();
 }
 
@@ -363,7 +362,7 @@ bool FFmpegDecoder::InitInputFmtParams(std::string& url, AVInputFormat** fmt)
 void FFmpegDecoder::InitDecodeParams()
 {
     video_duration_ = 0;
-    frame_rate_ = 0;
+    fps_ = 0;
     frame_num_ = 0;
     end_ = true;
 }

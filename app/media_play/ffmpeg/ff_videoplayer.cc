@@ -3,6 +3,7 @@
 #include <QApplication>
 
 #include "common/avdef.h"
+#include "media_play/stream_event_type.h"
 #include "spdlog/spdlog.h"
 
 FFVideoPlayer::FFVideoPlayer(QObject* parent)
@@ -19,9 +20,9 @@ FFVideoPlayer::~FFVideoPlayer()
     Stop();
 }
 
-void FFVideoPlayer::Open()
+void FFVideoPlayer::Start()
 {
-    if (playstate() == FFVideoPlayer::kPause) {
+    if (playstate_ == FFVideoPlayer::kPause) {
         set_playstate(FFVideoPlayer::kPlaying);
         return;
     }
@@ -46,7 +47,7 @@ void FFVideoPlayer::Stop()
 
 void FFVideoPlayer::Resume()
 {
-    if (playstate() == FFVideoPlayer::kPause) {
+    if (playstate_ == FFVideoPlayer::kPause) {
         set_playstate(FFVideoPlayer::kPlaying);
     }
 }
@@ -74,10 +75,15 @@ void FFVideoPlayer::StopRecord()
 void FFVideoPlayer::run()
 {
     bool ret = decoder_->Open();
-    if (!ret)
+    if (!ret) {
+        event_cb(kOpenStreamFail);
         return;
+    }
 
-    set_sleep_policy(kUntil, decoder_->frame_rate());
+    fps_ = decoder_->fps();
+    set_sleep_policy(kUntil, 1000 / decoder_->fps());
+
+    event_cb(kOpenStreamSuccess);
 
     playstate_ = kPlaying;
     while (playstate_ != kStop) {
@@ -91,13 +97,16 @@ void FFVideoPlayer::run()
             push_frame(frame);
 
             CThread::Sleep();
-        } /* else {
-             if (decoder_->is_end()) {
-                 playstate_ = kStop;
-             }
-         }*/
+        } else {
+            if (decoder_->is_end()) {
+                playstate_ = kStop;
+                event_cb(kStreamEnd);
+            }
+        }
     }
 
     decoder_->Close();
     writer_->Close();
+
+    event_cb(kStreamClose);
 }

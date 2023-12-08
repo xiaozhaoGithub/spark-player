@@ -94,8 +94,7 @@ VideoDisplayWidget::~VideoDisplayWidget() {}
 
 void VideoDisplayWidget::PlayClicked()
 {
-    video_widget_->set_media(media_);
-    video_widget_->Open();
+    video_widget_->Open(media_);
 }
 
 void VideoDisplayWidget::PauseClicked()

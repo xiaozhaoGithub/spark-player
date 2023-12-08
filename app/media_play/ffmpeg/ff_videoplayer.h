@@ -18,10 +18,7 @@ public:
     explicit FFVideoPlayer(QObject* parent = nullptr);
     ~FFVideoPlayer();
 
-    VideoPlayState playstate() { return playstate_; }
-    void set_playstate(VideoPlayState state) { playstate_ = state; }
-
-    void Open() override;
+    void Start() override;
     void Pause() override;
     void Stop() override;
     void Resume() override;

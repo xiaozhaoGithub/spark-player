@@ -32,7 +32,7 @@ public:
 
     bool is_end() { return end_; }
     AVStream* video_stream() { return video_stream_; }
-    int frame_rate() { return frame_rate_; }
+    int fps() { return fps_; }
 
 private:
     void FFmpegError(int error_code);
@@ -65,7 +65,7 @@ private:
     int linesize_[4];
 
     int64_t video_duration_;
-    int frame_rate_;
+    int fps_;
     int64_t frame_num_;
     bool end_;
 };

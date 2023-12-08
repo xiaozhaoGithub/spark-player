@@ -53,7 +53,7 @@ bool DecodeFrameBuf::Pop(DecodeFrame* frame)
     auto cache_frame = frames_.front();
     frames_.pop_front();
 
-    free(frame->buf.len);
+    free(cache_frame.buf.len);
 
     frame->Copy(cache_frame);
 
