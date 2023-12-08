@@ -7,7 +7,7 @@
 
 FFVideoPlayer::FFVideoPlayer(QObject* parent)
     : VideoPlayer()
-    , QThread(parent)
+    , CThread(parent)
     , playstate_(kStop)
 {
     decoder_ = std::make_unique<FFmpegDecoder>();
@@ -16,10 +16,7 @@ FFVideoPlayer::FFVideoPlayer(QObject* parent)
 
 FFVideoPlayer::~FFVideoPlayer()
 {
-    set_playstate(FFVideoPlayer::kStop);
-
-    quit();
-    wait();
+    Stop();
 }
 
 void FFVideoPlayer::Open()
@@ -42,6 +39,9 @@ void FFVideoPlayer::Pause()
 void FFVideoPlayer::Stop()
 {
     set_playstate(FFVideoPlayer::kStop);
+
+    quit();
+    wait();
 }
 
 void FFVideoPlayer::Resume()
@@ -77,28 +77,25 @@ void FFVideoPlayer::run()
     if (!ret)
         return;
 
+    set_sleep_policy(kUntil, decoder_->frame_rate());
+
     playstate_ = kPlaying;
     while (playstate_ != kStop) {
         while (playstate_ == kPause) {
-            QThread::msleep(200);
+            std::this_thread::yield();
         }
 
         DecodeFrame* frame = decoder_->GetFrame();
         if (frame) {
             // writer_->Write(frame);
-            int per_frame_ms = 1000 / frame->fps;
             push_frame(frame);
 
-            auto now = std::chrono::system_clock::now();
-            auto ms = now + std::chrono::milliseconds(per_frame_ms);
-
-            std::this_thread::sleep_until(ms);
-        } else {
-            if (decoder_->is_end()) {
-                playstate_ = kStop;
-            }
-            QThread::msleep(1);
-        }
+            CThread::Sleep();
+        } /* else {
+             if (decoder_->is_end()) {
+                 playstate_ = kStop;
+             }
+         }*/
     }
 
     decoder_->Close();

@@ -6,17 +6,9 @@
 #include <QPushButton>
 #include <QStackedWidget>
 
-extern "C"
-{
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/imgutils.h>
-#include <libswscale/swscale.h>
-}
-
-#include "render/opengl/render_wnd_gl.h"
 #include "render/qpainter/video_player_widget.h"
 #include "widget/common/widgets.h"
+#include "widget/video_display/video_widget.h"
 
 class VideoDisplayWidget : public QWidget
 {
@@ -39,8 +31,7 @@ private slots:
     void RecordState(bool recording);
 
 private:
-    // VideoPlayerWidget* player_;
-    RenderWndGL* player_;
+    VideoWidget* video_widget_;
 
     FolderLineEdit* file_edit_;
     QPushButton* play_btn_;

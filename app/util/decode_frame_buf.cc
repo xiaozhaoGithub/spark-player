@@ -8,12 +8,12 @@ DecodeFrameBuf::DecodeFrameBuf()
 
 DecodeFrameBuf::~DecodeFrameBuf() {}
 
-void DecodeFrameBuf::Push(DecodeFrame* frame)
+bool DecodeFrameBuf::Push(DecodeFrame* frame)
 {
     ++frame_state_.push_cnt;
 
     if (frame->IsNull())
-        return;
+        return false;
 
     std::lock_guard<std::mutex> lock_guard(mutex_);
 
@@ -36,16 +36,18 @@ void DecodeFrameBuf::Push(DecodeFrame* frame)
     frames_.emplace_back(cache_frame);
 
     ++frame_state_.push_ok_cnt;
+
+    return true;
 }
 
-void DecodeFrameBuf::Pop(DecodeFrame* frame)
+bool DecodeFrameBuf::Pop(DecodeFrame* frame)
 {
     --frame_state_.pop_cnt;
 
     std::lock_guard<std::mutex> lock_guard(mutex_);
 
     if (frames_.size() == 0) {
-        return;
+        return false;
     }
 
     auto cache_frame = frames_.front();
@@ -56,4 +58,6 @@ void DecodeFrameBuf::Pop(DecodeFrame* frame)
     frame->Copy(cache_frame);
 
     --frame_state_.pop_ok_cnt;
+
+    return true;
 }

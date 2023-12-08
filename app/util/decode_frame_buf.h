@@ -22,8 +22,8 @@ public:
 
     void set_cache(int cache_num) { cache_num_ = cache_num; }
 
-    void Push(DecodeFrame* frame);
-    void Pop(DecodeFrame* frame);
+    bool Push(DecodeFrame* frame);
+    bool Pop(DecodeFrame* frame);
 
 private:
     std::deque<DecodeFrame> frames_;

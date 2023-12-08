@@ -28,8 +28,8 @@ public:
     VideoPlayState playstate() { return playstate_; }
     void set_playstate(VideoPlayState state) { playstate_ = state; }
 
-    void push_frame(DecodeFrame* frame) { frame_buf_.Push(frame); };
-    void pop_frame(DecodeFrame* frame) { frame_buf_.Pop(frame); }
+    bool push_frame(DecodeFrame* frame) { return frame_buf_.Push(frame); };
+    bool pop_frame(DecodeFrame* frame) { return frame_buf_.Pop(frame); }
 
 private:
     VideoPlayState playstate_;

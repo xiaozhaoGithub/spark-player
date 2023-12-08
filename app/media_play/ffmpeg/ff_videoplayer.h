@@ -4,22 +4,22 @@
 #include <QElapsedTimer>
 #include <QImage>
 #include <QObject>
-#include <QThread>
 #include <QTime>
 
 #include "codec/ffmpegdecoder.h"
 #include "codec/ffmpegwriter.h"
 #include "common/media_info.h"
 #include "media_play/video_player.h"
+#include "util/cthread.h"
 
-class FFVideoPlayer : public VideoPlayer, public QThread
+class FFVideoPlayer : public VideoPlayer, public CThread
 {
 public:
     explicit FFVideoPlayer(QObject* parent = nullptr);
     ~FFVideoPlayer();
 
-    inline VideoPlayState playstate();
-    inline void set_playstate(VideoPlayState state);
+    VideoPlayState playstate() { return playstate_; }
+    void set_playstate(VideoPlayState state) { playstate_ = state; }
 
     void Open() override;
     void Pause() override;
@@ -39,15 +39,5 @@ private:
     QByteArray filename_;
     VideoPlayState playstate_;
 };
-
-inline FFVideoPlayer::VideoPlayState FFVideoPlayer::playstate()
-{
-    return playstate_;
-}
-
-inline void FFVideoPlayer::set_playstate(VideoPlayState state)
-{
-    playstate_ = state;
-}
 
 #endif

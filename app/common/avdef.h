@@ -9,4 +9,12 @@ typedef enum
     kNone
 } MediaSourceType;
 
+typedef enum
+{
+    PIX_FMT_YUV420P,
+    PIX_FMT_YUVJ420P,
+    PIX_FMT_YUVJ422P,
+    PIX_FMT_NV12,
+} PixelFormat;
+
 #endif

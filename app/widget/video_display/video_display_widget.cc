@@ -22,7 +22,7 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     // player_ = new VideoPlayerWidget(this);
     // connect(player_, &VideoPlayerWidget::PlayState, this, &VideoDisplayWidget::PlayState);
 
-    player_ = new RenderWndGL(this);
+    video_widget_ = new VideoWidget(this);
     // connect(player_, &RenderWndGL::PlayState, this, &VideoDisplayWidget::PlayState);
     // connect(player_, &RenderWndGL::RecordState, this, &VideoDisplayWidget::RecordState);
 
@@ -84,39 +84,39 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     btn_layout->addWidget(stop_btn);
     btn_layout->addWidget(record_widget_);
 
-    auto mainLayout = new QVBoxLayout(this);
-    mainLayout->addWidget(player_, 9);
-    mainLayout->addWidget(fill_bg_wiget);
-    mainLayout->addLayout(btn_layout);
+    auto main_layout = new QVBoxLayout(this);
+    main_layout->addWidget(video_widget_, 9);
+    main_layout->addWidget(fill_bg_wiget);
+    main_layout->addLayout(btn_layout);
 }
 
 VideoDisplayWidget::~VideoDisplayWidget() {}
 
 void VideoDisplayWidget::PlayClicked()
 {
-    player_->set_media(media_);
-    player_->Open();
+    video_widget_->set_media(media_);
+    video_widget_->Open();
 }
 
 void VideoDisplayWidget::PauseClicked()
 {
     play_stop_widget_->setCurrentWidget(play_btn_);
-    player_->Pause();
+    video_widget_->Pause();
 }
 
 void VideoDisplayWidget::StopClicked()
 {
-    player_->Stop();
+    video_widget_->Stop();
 }
 
 void VideoDisplayWidget::RecordClicked()
 {
-    player_->StartRecord();
+    video_widget_->StartRecord();
 }
 
 void VideoDisplayWidget::StopRecordClicked()
 {
-    player_->StopRecord();
+    video_widget_->StopRecord();
 }
 
 void VideoDisplayWidget::DecodeBtnClicked(int id)

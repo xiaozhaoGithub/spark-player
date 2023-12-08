@@ -12,7 +12,7 @@ public:
         buf.copy(frame.buf.base, frame.buf.len);
         w = frame.w;
         h = frame.h;
-        fps = frame.fps;
+        ts = frame.ts;
         format = frame.format;
     }
 
@@ -22,7 +22,7 @@ public:
     HBuf buf;
     int w;
     int h;
-    int fps;
+    uint64_t ts; // ms
     int format;
 };
 

@@ -3,6 +3,7 @@
 #include "common/singleton.h"
 #include "config/config.h"
 #include "spdlog/spdlog.h"
+#include "util/cthread.h"
 #include "widget/video_display/video_display_widget.h"
 
 FFmpegDecoder::FFmpegDecoder()
@@ -74,7 +75,7 @@ bool FFmpegDecoder::Open()
 
     video_stream_ = fmt_ctx_->streams[video_index];
 
-    frame_rate_ = av_q2d(video_stream_->avg_frame_rate);
+    frame_rate_ = static_cast<int>(av_q2d(video_stream_->avg_frame_rate));
     frame_num_ = video_stream_->nb_frames;
 
     const AVCodec* codec = avcodec_find_decoder(video_stream_->codecpar->codec_id);
@@ -168,7 +169,6 @@ bool FFmpegDecoder::Open()
         data_[0] = reinterpret_cast<uint8_t*>(decode_frame_.buf.base);
         linesize_[0] = dst_w * 3;
     }
-    decode_frame_.fps = frame_rate_;
 
     end_ = false;
 
@@ -191,6 +191,22 @@ int FFmpegDecoder::GetPacket(AVPacket* pkt)
     } while (pkt->stream_index != video_stream_->index && ret >= 0);
 
     return ret;
+}
+
+int GetCommonFmt(int format)
+{
+    switch (format) {
+    case AV_PIX_FMT_YUV420P:
+        return PIX_FMT_YUV420P;
+    case AV_PIX_FMT_YUVJ420P:
+        return PIX_FMT_YUVJ420P;
+    case AV_PIX_FMT_YUVJ422P:
+        return PIX_FMT_YUVJ422P;
+    case AV_PIX_FMT_NV12:
+        return PIX_FMT_NV12;
+    default:
+        return 0;
+    }
 }
 
 DecodeFrame* FFmpegDecoder::GetFrame()
@@ -244,7 +260,8 @@ DecodeFrame* FFmpegDecoder::GetFrame()
     }
     decode_frame_.w = tmp_frame->width;
     decode_frame_.h = tmp_frame->height;
-    decode_frame_.format = tmp_frame->format;
+    decode_frame_.format = GetCommonFmt(tmp_frame->format);
+    decode_frame_.ts = tmp_frame->pts * av_q2d(video_stream_->time_base) * 1000;
 
     return &decode_frame_;
 }
@@ -346,7 +363,7 @@ bool FFmpegDecoder::InitInputFmtParams(std::string& url, AVInputFormat** fmt)
 void FFmpegDecoder::InitDecodeParams()
 {
     video_duration_ = 0;
-    frame_rate_ = 0.0;
+    frame_rate_ = 0;
     frame_num_ = 0;
     end_ = true;
 }

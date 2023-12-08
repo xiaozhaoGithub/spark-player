@@ -13,11 +13,11 @@ enum RenderType
 class RenderFactory
 {
 public:
-    static RenderWnd* Create(RenderType type)
+    static RenderWnd* Create(RenderType type, QWidget* parent)
     {
         switch (type) {
         case kOpenGL:
-            return new RenderWndGL;
+            return new RenderWndGL(parent);
         case kSDL2:
             return nullptr;
         default:

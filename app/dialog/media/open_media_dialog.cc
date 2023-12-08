@@ -15,6 +15,7 @@ OpenMediaDialog::OpenMediaDialog(QWidget* parent)
     tabwidget_ = new QTabWidget(this);
 
     file_edit_ = new FolderLineEdit(this);
+    file_edit_->setText("E:/WorkSpace/GithubCode/ffmpeg-player/build/app/Debug/10.mp4");
 
     url_edit_ = new QLineEdit(this);
     url_edit_->setFixedWidth(360);

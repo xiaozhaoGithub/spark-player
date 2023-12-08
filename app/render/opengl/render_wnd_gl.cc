@@ -2,54 +2,16 @@
 
 #include <QOpenGLShaderProgram>
 
-#include "media_play/video_player_factory.h"
+#include "common/avdef.h"
 #include "spdlog/spdlog.h"
 
 RenderWndGL::RenderWndGL(QWidget* parent)
     : QOpenGLWidget(parent)
-{
-    InitUi();
-}
+{}
 
 RenderWndGL::~RenderWndGL() {}
 
-void RenderWndGL::Open()
-{
-    video_player_->Open();
-}
-
-void RenderWndGL::Pause()
-{
-    video_player_->Pause();
-}
-
-void RenderWndGL::Stop()
-{
-    video_player_->Stop();
-}
-
-void RenderWndGL::StartRecord()
-{
-    // video_player_->StartRecord();
-}
-
-void RenderWndGL::StopRecord()
-{
-    // video_player_->StopRecord();
-}
-
-void RenderWndGL::set_media(const MediaInfo& media)
-{
-    video_player_->set_media(media);
-}
-
-void RenderWndGL::OnRender()
-{
-    DecodeFrame frame;
-    video_player_->pop_frame(&frame);
-}
-
-void RenderWndGL::ProcessFrame(const DecodeFrame& frame)
+void RenderWndGL::Render(const DecodeFrame& frame)
 {
     if (frame.w == 0 || frame.h == 0)
         return;
@@ -59,19 +21,19 @@ void RenderWndGL::ProcessFrame(const DecodeFrame& frame)
 
     format_ = frame.format;
     switch (format_) {
-    case AV_PIX_FMT_YUV420P:
-    case AV_PIX_FMT_YUVJ420P: {
+    case PIX_FMT_YUV420P:
+    case PIX_FMT_YUVJ420P: {
         tex_width = tex_width / 2;
         tex_height = tex_height / 2;
         ResetTexYuv(frame, format_, tex_width, tex_height);
     }
-    case AV_PIX_FMT_YUVJ422P: {
+    case PIX_FMT_YUVJ422P: {
         tex_width = tex_width / 2;
         tex_height = tex_height;
         ResetTexYuv(frame, format_, tex_width, tex_height);
         break;
     }
-    case AV_PIX_FMT_NV12: {
+    case PIX_FMT_NV12: {
         ResetTexNV12(frame);
         break;
     }
@@ -80,26 +42,6 @@ void RenderWndGL::ProcessFrame(const DecodeFrame& frame)
     }
 
     update();
-}
-
-void RenderWndGL::FullScreenClicked()
-{
-    if (isFullScreen())
-        return;
-
-    setWindowFlags(Qt::Window);
-
-    // Direct full screen will only be full screen on the main screen and placed in the Qt queue.
-    QMetaObject::invokeMethod(this, "showFullScreen", Qt::QueuedConnection);
-}
-
-void RenderWndGL::ExitFullScreenClicked()
-{
-    if (!isFullScreen())
-        return;
-
-    setWindowFlags(Qt::Widget);
-    showNormal();
 }
 
 void RenderWndGL::initializeGL()
@@ -128,46 +70,19 @@ void RenderWndGL::resizeGL(int w, int h)
 void RenderWndGL::paintGL()
 {
     switch (format_) {
-    case AV_PIX_FMT_YUV420P:
-    case AV_PIX_FMT_YUVJ420P:
-    case AV_PIX_FMT_YUVJ422P: {
+    case PIX_FMT_YUV420P:
+    case PIX_FMT_YUVJ420P:
+    case PIX_FMT_YUVJ422P: {
         renderer_->Draw(y_tex_, u_tex_, v_tex_, format_, QVector2D(width(), height()));
         break;
     }
-    case AV_PIX_FMT_NV12: {
+    case PIX_FMT_NV12: {
         renderer_->Draw(y_tex_, uv_tex_, format_, QVector2D(width(), height()));
         break;
     }
     default:
         break;
     }
-}
-
-void RenderWndGL::contextMenuEvent(QContextMenuEvent* event)
-{
-    QWidget::contextMenuEvent(event);
-
-    menu_->popup(mapToGlobal(event->pos()));
-}
-
-void RenderWndGL::InitUi()
-{
-    video_player_ = VideoPlayerFactory::Create(kFile);
-    /*  connect(video_player_, &VideoWorkerThread::PlayState, this, &RenderWndGL::PlayState);
-      connect(video_player_, &VideoWorkerThread::RecordState, this, &RenderWndGL::RecordState);*/
-
-    InitMenu();
-
-    render_timer_ = new QTimer(this);
-    render_timer_->setTimerType(Qt::PreciseTimer);
-    connect(render_timer_, &QTimer::timeout, this, &RenderWndGL::OnRender);
-}
-
-void RenderWndGL::InitMenu()
-{
-    menu_ = new QMenu(this);
-    menu_->addAction(tr("Full Screen"), this, &RenderWndGL::FullScreenClicked);
-    menu_->addAction(tr("Exit Full Screen"), this, &RenderWndGL::ExitFullScreenClicked);
 }
 
 void RenderWndGL::ReallocTex(QOpenGLTexturePtr tex, int type, int width, int height, int depth)

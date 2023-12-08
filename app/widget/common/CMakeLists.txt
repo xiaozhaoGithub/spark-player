@@ -4,5 +4,7 @@ set(Sources
 	widget/common/widgets.h
 	widget/common/uihelper.cc
 	widget/common/uihelper.h
+	widget/common/fast_layout.cc
+	widget/common/fast_layout.h
 	PARENT_SCOPE
 )
