@@ -9,7 +9,6 @@
 FFVideoPlayer::FFVideoPlayer(QObject* parent)
     : VideoPlayer()
     , CThread(parent)
-    , playstate_(kStop)
 {
     decoder_ = std::make_unique<FFmpegDecoder>();
     writer_ = std::make_unique<FFmpegWriter>();
@@ -22,11 +21,6 @@ FFVideoPlayer::~FFVideoPlayer()
 
 void FFVideoPlayer::Start()
 {
-    if (playstate_ == FFVideoPlayer::kPause) {
-        set_playstate(FFVideoPlayer::kPlaying);
-        return;
-    }
-
     decoder_->set_media(media());
 
     start();
@@ -34,21 +28,21 @@ void FFVideoPlayer::Start()
 
 void FFVideoPlayer::Pause()
 {
-    set_playstate(FFVideoPlayer::kPause);
+    set_state(kPause);
 }
 
 void FFVideoPlayer::Stop()
 {
-    set_playstate(FFVideoPlayer::kStop);
+    set_state(kStop);
 
     quit();
-    wait();
+    wait(); // Secure exit
 }
 
 void FFVideoPlayer::Resume()
 {
-    if (playstate_ == FFVideoPlayer::kPause) {
-        set_playstate(FFVideoPlayer::kPlaying);
+    if (state() == kPause) {
+        set_state(kRunning);
     }
 }
 
@@ -72,22 +66,27 @@ void FFVideoPlayer::StopRecord()
     // emit RecordState(false);
 }
 
-void FFVideoPlayer::run()
+bool FFVideoPlayer::DoPrepare()
 {
     bool ret = decoder_->Open();
     if (!ret) {
         event_cb(kOpenStreamFail);
-        return;
+        return false;
     }
 
     fps_ = decoder_->fps();
     set_sleep_policy(kUntil, 1000 / decoder_->fps());
+    set_state(kRunning);
 
     event_cb(kOpenStreamSuccess);
 
-    playstate_ = kPlaying;
-    while (playstate_ != kStop) {
-        while (playstate_ == kPause) {
+    return true;
+}
+
+void FFVideoPlayer::DoTask()
+{
+    while (state() != kStop) {
+        while (state() == kPause) {
             std::this_thread::yield();
         }
 
@@ -99,12 +98,16 @@ void FFVideoPlayer::run()
             CThread::Sleep();
         } else {
             if (decoder_->is_end()) {
-                playstate_ = kStop;
+                set_state(kStop);
+
                 event_cb(kStreamEnd);
             }
         }
     }
+}
 
+void FFVideoPlayer::DoFinish()
+{
     decoder_->Close();
     writer_->Close();
 

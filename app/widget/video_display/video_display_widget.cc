@@ -95,17 +95,20 @@ VideoDisplayWidget::~VideoDisplayWidget() {}
 void VideoDisplayWidget::PlayClicked()
 {
     video_widget_->Open(media_);
+
+    RefreshPlayStateBtn(true);
 }
 
 void VideoDisplayWidget::PauseClicked()
 {
-    play_stop_widget_->setCurrentWidget(play_btn_);
     video_widget_->Pause();
+    RefreshPlayStateBtn(false);
 }
 
 void VideoDisplayWidget::StopClicked()
 {
     video_widget_->Stop();
+    RefreshPlayStateBtn(false);
 }
 
 void VideoDisplayWidget::RecordClicked()
@@ -123,7 +126,7 @@ void VideoDisplayWidget::DecodeBtnClicked(int id)
     Singleton<Config>::Instance()->SetAppConfigData("video_param", "enable_hw_decode", (bool)id);
 }
 
-void VideoDisplayWidget::PlayState(bool playing)
+void VideoDisplayWidget::RefreshPlayStateBtn(bool playing)
 {
     play_stop_widget_->setCurrentWidget(playing ? pause_btn_ : play_btn_);
 }

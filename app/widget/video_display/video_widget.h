@@ -25,10 +25,18 @@ protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
 
 private:
+    enum PlayState
+    {
+        kRunning,
+        kPause,
+        kStop
+    };
+
     void InitUi();
     void InitMenu();
 
     void Start();
+    void Resume();
 
     // event cb
     void StreamEventCallback(StreamEventType type);
@@ -50,6 +58,7 @@ private:
     // decode
     VideoPlayer* video_player_;
     MediaInfo media_;
+    PlayState play_state_;
 
     // render
     QTimer* render_timer_;

@@ -1,8 +1,7 @@
 #include "video_player.h"
 
 VideoPlayer::VideoPlayer()
-    : playstate_(kStop)
-    , fps_(0)
+    : fps_(0)
 {}
 
 VideoPlayer::~VideoPlayer() {}

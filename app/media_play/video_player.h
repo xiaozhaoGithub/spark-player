@@ -13,13 +13,6 @@ public:
     VideoPlayer();
     virtual ~VideoPlayer();
 
-    enum VideoPlayState
-    {
-        kPlaying,
-        kPause,
-        kStop
-    };
-
     virtual void Start() = 0;
     virtual void Pause() = 0;
     virtual void Stop() = 0;
@@ -27,9 +20,6 @@ public:
 
     MediaInfo media() { return media_; }
     void set_media(const MediaInfo& media) { media_ = media; }
-
-    VideoPlayState playstate() { return playstate_; }
-    void set_playstate(VideoPlayState state) { playstate_ = state; }
 
     void set_event_cb(StreamEventCallback cb) { event_cb_.swap(cb); }
     void event_cb(StreamEventType ev);
@@ -40,13 +30,11 @@ public:
     int fps() { return fps_; }
 
 protected:
+    MediaInfo media_;
     int fps_;
 
 private:
-    VideoPlayState playstate_;
     DecodeFrameBuf frame_buf_;
-    MediaInfo media_;
-
     StreamEventCallback event_cb_;
 };
 

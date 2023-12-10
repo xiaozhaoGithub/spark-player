@@ -10,11 +10,13 @@
 
 VideoWidget::VideoWidget(QWidget* parent)
     : QWidget(parent)
+    , video_player_(nullptr)
+    , play_state_(kStop)
     , fps_(0)
 {
     InitUi();
 
-    fps_ = Singleton<Config>::Instance()->AppConfigData("video_param", "pts").toInt();
+    fps_ = Singleton<Config>::Instance()->AppConfigData("video_param", "fps").toInt();
 
     render_timer_ = new QTimer(this);
     render_timer_->setTimerType(Qt::PreciseTimer);
@@ -29,14 +31,22 @@ void VideoWidget::Open(const MediaInfo& media)
 
 void VideoWidget::Pause()
 {
+    if (!video_player_ || play_state_ != kRunning)
+        return;
+
+    play_state_ = kPause;
+    render_timer_->stop();
+
     video_player_->Pause();
 }
 
 void VideoWidget::Stop()
 {
-    video_player_->Stop();
+    if (!video_player_ || play_state_ == kStop)
+        return;
 
-    SAFE_FREE(video_player_);
+    play_state_ = kStop;
+    video_player_->Stop();
 }
 
 void VideoWidget::StartRecord()
@@ -78,14 +88,32 @@ void VideoWidget::InitMenu()
 
 void VideoWidget::Start()
 {
-    video_player_ = VideoPlayerFactory::Create(kFile);
+    if (!video_player_) {
+        video_player_ = VideoPlayerFactory::Create(media_.type);
 
-    if (video_player_) {
         video_player_->set_media(media_);
         video_player_->set_event_cb(
             std::bind(&VideoWidget::StreamEventCallback, this, std::placeholders::_1));
+
         video_player_->Start();
+    } else {
+        Resume();
     }
+}
+
+void VideoWidget::Resume()
+{
+    if (play_state_ != kPause)
+        return;
+
+    if (!video_player_)
+        return;
+
+    int duration = 1000 / (fps_ ? fps_ : video_player_->fps());
+    render_timer_->start(duration);
+    video_player_->Resume();
+
+    play_state_ = kRunning;
 }
 
 void VideoWidget::StreamEventCallback(StreamEventType type)
@@ -119,17 +147,33 @@ void VideoWidget::OnEventProcess(StreamEventType type)
 
 void VideoWidget::OnOpenStreamSuccess()
 {
+    play_state_ = kRunning;
+
     int duration = 1000 / (fps_ ? fps_ : video_player_->fps());
     render_timer_->start(duration);
 }
 
-void VideoWidget::OnOpenStreamFail() {}
+void VideoWidget::OnOpenStreamFail()
+{
+    QMessageBox::warning(this, tr("Warning"), tr("Failed to open stream"));
+}
 
 void VideoWidget::OnStreamEnd() {}
 
-void VideoWidget::OnStreamClose() {}
+void VideoWidget::OnStreamClose()
+{
+    play_state_ = kStop;
+    render_timer_->stop();
 
-void VideoWidget::OnStreamError() {}
+    SAFE_FREE(video_player_);
+}
+
+void VideoWidget::OnStreamError()
+{
+    OnStreamClose();
+
+    QMessageBox::warning(this, tr("Warning"), tr("An error occurred during playback."));
+}
 
 void VideoWidget::OnRender()
 {

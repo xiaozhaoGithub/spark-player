@@ -27,14 +27,15 @@ public:
     void StopRecord();
 
 protected:
-    void run() override;
+    bool DoPrepare() override;
+    void DoTask() override;
+    void DoFinish() override;
 
 private:
     std::unique_ptr<FFmpegDecoder> decoder_;
     std::unique_ptr<FFmpegWriter> writer_;
 
     QByteArray filename_;
-    VideoPlayState playstate_;
 };
 
 #endif
