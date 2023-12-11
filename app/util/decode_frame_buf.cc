@@ -15,25 +15,26 @@ bool DecodeFrameBuf::Push(DecodeFrame* frame)
     if (frame->IsNull())
         return false;
 
-    std::lock_guard<std::mutex> lock_guard(mutex_);
+    {
+        std::lock_guard<std::mutex> lock_guard(mutex_);
 
-    // dropped frame
-    if (frames_.size() >= cache_num_) {
-        DecodeFrame& frame = frames_.front();
-        frames_.pop_front();
-        free(frame.buf.len);
+        // dropped frame
+        if (frames_.size() >= cache_num_) {
+            DecodeFrame& frame = frames_.front();
+            frames_.pop_front();
+            free(frame.buf.len);
+        }
+
+        if (isNull()) {
+            resize(cache_num_ * frame->buf.len);
+        }
+
+        DecodeFrame cache_frame;
+        cache_frame.buf.base = alloc(frame->buf.len);
+        cache_frame.buf.len = frame->buf.len;
+        cache_frame.Copy(*frame);
+        frames_.emplace_back(cache_frame);
     }
-
-    if (isNull()) {
-        resize(cache_num_ * frame->buf.len);
-    }
-
-    DecodeFrame cache_frame;
-    cache_frame.buf.base = alloc(frame->buf.len);
-    cache_frame.buf.len = frame->buf.len;
-    cache_frame.Copy(*frame);
-
-    frames_.emplace_back(cache_frame);
 
     ++frame_state_.push_ok_cnt;
 
@@ -44,18 +45,19 @@ bool DecodeFrameBuf::Pop(DecodeFrame* frame)
 {
     --frame_state_.pop_cnt;
 
-    std::lock_guard<std::mutex> lock_guard(mutex_);
+    {
+        std::lock_guard<std::mutex> lock_guard(mutex_);
 
-    if (frames_.size() == 0) {
-        return false;
+        if (frames_.size() == 0) {
+            return false;
+        }
+
+        DecodeFrame& cache_frame = frames_.front();
+        frames_.pop_front();
+        free(cache_frame.buf.len);
+
+        frame->Copy(cache_frame);
     }
-
-    auto cache_frame = frames_.front();
-    frames_.pop_front();
-
-    free(cache_frame.buf.len);
-
-    frame->Copy(cache_frame);
 
     --frame_state_.pop_ok_cnt;
 

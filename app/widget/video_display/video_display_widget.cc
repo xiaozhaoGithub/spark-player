@@ -19,11 +19,8 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     file_edit_->setReadOnly(true);
     file_edit_->set_select_file_handle(std::bind(&VideoDisplayWidget::SelectMediaClicked, this));
 
-    // player_ = new VideoPlayerWidget(this);
-    // connect(player_, &VideoPlayerWidget::PlayState, this, &VideoDisplayWidget::PlayState);
-
     video_widget_ = new VideoWidget(this);
-    // connect(player_, &RenderWndGL::PlayState, this, &VideoDisplayWidget::PlayState);
+    connect(video_widget_, &VideoWidget::StreamClosed, this, [this] { PlayStateChanged(false); });
     // connect(player_, &RenderWndGL::RecordState, this, &VideoDisplayWidget::RecordState);
 
     auto fill_bg_wiget = new QWidget(this);
@@ -96,19 +93,19 @@ void VideoDisplayWidget::PlayClicked()
 {
     video_widget_->Open(media_);
 
-    RefreshPlayStateBtn(true);
+    PlayStateChanged(true);
 }
 
 void VideoDisplayWidget::PauseClicked()
 {
     video_widget_->Pause();
-    RefreshPlayStateBtn(false);
+    PlayStateChanged(false);
 }
 
 void VideoDisplayWidget::StopClicked()
 {
     video_widget_->Stop();
-    RefreshPlayStateBtn(false);
+    PlayStateChanged(false);
 }
 
 void VideoDisplayWidget::RecordClicked()
@@ -126,7 +123,7 @@ void VideoDisplayWidget::DecodeBtnClicked(int id)
     Singleton<Config>::Instance()->SetAppConfigData("video_param", "enable_hw_decode", (bool)id);
 }
 
-void VideoDisplayWidget::RefreshPlayStateBtn(bool playing)
+void VideoDisplayWidget::PlayStateChanged(bool playing)
 {
     play_stop_widget_->setCurrentWidget(playing ? pause_btn_ : play_btn_);
 }

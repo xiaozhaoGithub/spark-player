@@ -14,6 +14,7 @@ public:
     virtual ~RenderWnd();
 
     virtual void Render(const DecodeFrame&) = 0;
+    virtual void update() = 0;
     virtual void setGeometry(const QRect&) = 0;
 
 private:

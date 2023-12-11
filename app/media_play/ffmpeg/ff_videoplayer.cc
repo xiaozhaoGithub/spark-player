@@ -75,7 +75,7 @@ bool FFVideoPlayer::DoPrepare()
     }
 
     fps_ = decoder_->fps();
-    set_sleep_policy(kUntil, 1000 / decoder_->fps());
+    set_sleep_policy(kUntil, 1000 / fps_);
     set_state(kRunning);
 
     event_cb(kOpenStreamSuccess);

@@ -14,19 +14,14 @@ VideoWidget::VideoWidget(QWidget* parent)
     , play_state_(kStop)
     , fps_(0)
 {
+    qRegisterMetaType<StreamEventType>("StreamEventType");
+
     InitUi();
-
-    fps_ = Singleton<Config>::Instance()->AppConfigData("video_param", "fps").toInt();
-
-    render_timer_ = new QTimer(this);
-    render_timer_->setTimerType(Qt::PreciseTimer);
-    connect(render_timer_, &QTimer::timeout, this, &VideoWidget::OnRender);
 }
 
 void VideoWidget::Open(const MediaInfo& media)
 {
-    media_ = media;
-    Start();
+    Start(media);
 }
 
 void VideoWidget::Pause()
@@ -73,10 +68,14 @@ void VideoWidget::contextMenuEvent(QContextMenuEvent* event)
 
 void VideoWidget::InitUi()
 {
-    qRegisterMetaType<StreamEventType>("StreamEventType");
-
     render_wnd_ = RenderFactory::Create(kOpenGL, this);
     InitMenu();
+
+    fps_ = Singleton<Config>::Instance()->AppConfigData("video_param", "fps").toInt();
+
+    render_timer_ = new QTimer(this);
+    render_timer_->setTimerType(Qt::PreciseTimer);
+    connect(render_timer_, &QTimer::timeout, this, &VideoWidget::OnRender);
 }
 
 void VideoWidget::InitMenu()
@@ -86,12 +85,11 @@ void VideoWidget::InitMenu()
     menu_->addAction(tr("Exit Full Screen"), this, &VideoWidget::ExitFullScreenClicked);
 }
 
-void VideoWidget::Start()
+void VideoWidget::Start(const MediaInfo& media)
 {
     if (!video_player_) {
-        video_player_ = VideoPlayerFactory::Create(media_.type);
-
-        video_player_->set_media(media_);
+        video_player_ = VideoPlayerFactory::Create(media.type);
+        video_player_->set_media(media);
         video_player_->set_event_cb(
             std::bind(&VideoWidget::StreamEventCallback, this, std::placeholders::_1));
 
@@ -109,8 +107,7 @@ void VideoWidget::Resume()
     if (!video_player_)
         return;
 
-    int duration = 1000 / (fps_ ? fps_ : video_player_->fps());
-    render_timer_->start(duration);
+    render_timer_->start(1000 / (fps_ ? fps_ : video_player_->fps()));
     video_player_->Resume();
 
     play_state_ = kRunning;
@@ -149,8 +146,7 @@ void VideoWidget::OnOpenStreamSuccess()
 {
     play_state_ = kRunning;
 
-    int duration = 1000 / (fps_ ? fps_ : video_player_->fps());
-    render_timer_->start(duration);
+    render_timer_->start(1000 / (fps_ ? fps_ : video_player_->fps()));
 }
 
 void VideoWidget::OnOpenStreamFail()
@@ -164,8 +160,11 @@ void VideoWidget::OnStreamClose()
 {
     play_state_ = kStop;
     render_timer_->stop();
+    render_wnd_->update();
 
     SAFE_FREE(video_player_);
+
+    emit StreamClosed();
 }
 
 void VideoWidget::OnStreamError()

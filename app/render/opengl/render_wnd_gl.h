@@ -30,6 +30,7 @@ protected:
 
     void Render(const DecodeFrame& frame) override;
     void setGeometry(const QRect& rect) override { QOpenGLWidget::setGeometry(rect); }
+    void update() override { QOpenGLWidget::update(); }
 
 private:
     void ReallocTex(QOpenGLTexturePtr tex, int type, int width, int height = 1, int depth = 1);

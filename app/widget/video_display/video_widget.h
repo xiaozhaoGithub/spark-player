@@ -3,7 +3,6 @@
 
 #include <QContextMenuEvent>
 
-#include "common/media_info.h"
 #include "media_play/ffmpeg/ff_videoplayer.h"
 #include "media_play/stream_event_type.h"
 #include "render/opengl/render_wnd_gl.h"
@@ -20,6 +19,9 @@ public:
     void StartRecord();
     void StopRecord();
 
+signals:
+    void StreamClosed();
+
 protected:
     void resizeEvent(QResizeEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
@@ -35,7 +37,7 @@ private:
     void InitUi();
     void InitMenu();
 
-    void Start();
+    void Start(const MediaInfo& media);
     void Resume();
 
     // event cb
@@ -57,7 +59,6 @@ private:
 
     // decode
     VideoPlayer* video_player_;
-    MediaInfo media_;
     PlayState play_state_;
 
     // render

@@ -27,7 +27,7 @@ private slots:
     void StopRecordClicked();
     void DecodeBtnClicked(int id);
 
-    void RefreshPlayStateBtn(bool playing);
+    void PlayStateChanged(bool playing);
     void RecordState(bool recording);
 
 private:
