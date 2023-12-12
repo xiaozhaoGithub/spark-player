@@ -16,7 +16,7 @@ public:
         format = frame.format;
     }
 
-    bool IsNull() { return w == 0 || h == 0 || buf.isNull(); }
+    bool IsNull() const { return w == 0 || h == 0 || buf.isNull(); }
 
 public:
     HBuf buf;

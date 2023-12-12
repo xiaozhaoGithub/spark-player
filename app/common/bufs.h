@@ -64,7 +64,7 @@ public:
     void* data() { return base; }
     size_t size() { return len; }
 
-    bool isNull() { return base == NULL || len == 0; }
+    bool isNull() const { return base == NULL || len == 0; }
 
     void cleanup()
     {
