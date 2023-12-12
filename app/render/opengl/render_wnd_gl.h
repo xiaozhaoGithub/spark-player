@@ -34,7 +34,7 @@ protected:
 
 private:
     void ReallocTex(QOpenGLTexturePtr tex, int type, int width, int height = 1, int depth = 1);
-    void ResetTexYuv(const DecodeFrame& frame, int type, int width, int height);
+    void ResetTexYuv(const DecodeFrame& frame, int width, int height);
     void ResetTexNV12(const DecodeFrame& frame);
     void FreeTexYuv();
     void FreeTexNV12();

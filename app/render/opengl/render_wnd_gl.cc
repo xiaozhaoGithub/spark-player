@@ -21,16 +21,15 @@ void RenderWndGL::Render(const DecodeFrame& frame)
 
     format_ = frame.format;
     switch (format_) {
-    case PIX_FMT_YUV420P:
-    case PIX_FMT_YUVJ420P: {
+    case PIX_FMT_YUV420P: {
         tex_width = tex_width / 2;
         tex_height = tex_height / 2;
-        ResetTexYuv(frame, format_, tex_width, tex_height);
+        ResetTexYuv(frame, tex_width, tex_height);
     }
     case PIX_FMT_YUVJ422P: {
         tex_width = tex_width / 2;
         tex_height = tex_height;
-        ResetTexYuv(frame, format_, tex_width, tex_height);
+        ResetTexYuv(frame, tex_width, tex_height);
         break;
     }
     case PIX_FMT_NV12: {
@@ -71,7 +70,6 @@ void RenderWndGL::paintGL()
 {
     switch (format_) {
     case PIX_FMT_YUV420P:
-    case PIX_FMT_YUVJ420P:
     case PIX_FMT_YUVJ422P: {
         renderer_->Draw(y_tex_, u_tex_, v_tex_, format_, QVector2D(width(), height()));
         break;
@@ -93,7 +91,7 @@ void RenderWndGL::ReallocTex(QOpenGLTexturePtr tex, int type, int width, int hei
     tex->allocateStorage();
 }
 
-void RenderWndGL::ResetTexYuv(const DecodeFrame& frame, int type, int width, int height)
+void RenderWndGL::ResetTexYuv(const DecodeFrame& frame, int width, int height)
 {
     if (frame.w != frame_size_.width() || frame.h != frame_size_.height()) {
         FreeTexYuv();

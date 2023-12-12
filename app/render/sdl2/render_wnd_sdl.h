@@ -1,7 +1,6 @@
 #ifndef RENDER_WND_SDL_H_
 #define RENDER_WND_SDL_H_
 
-
 #include "render/render_wnd.h"
 #include "util/decode_frame.h"
 

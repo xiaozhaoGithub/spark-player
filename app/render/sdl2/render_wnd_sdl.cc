@@ -5,7 +5,8 @@
 
 std::atomic_flag RenderWndSDL::sdl_inited_ = ATOMIC_FLAG_INIT;
 
-RenderWndSDL::RenderWndSDL(QWidget* /*parent*/)
+RenderWndSDL::RenderWndSDL(QWidget* parent)
+    : QWidget(parent)
 {
     // Init only once
     if (!sdl_inited_.test_and_set()) {

@@ -196,9 +196,8 @@ int GetCommonFmt(int format)
 {
     switch (format) {
     case AV_PIX_FMT_YUV420P:
-        return PIX_FMT_YUV420P;
     case AV_PIX_FMT_YUVJ420P:
-        return PIX_FMT_YUVJ420P;
+        return PIX_FMT_YUV420P;
     case AV_PIX_FMT_YUVJ422P:
         return PIX_FMT_YUVJ422P;
     case AV_PIX_FMT_NV12:

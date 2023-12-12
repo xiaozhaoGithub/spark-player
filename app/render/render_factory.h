@@ -3,6 +3,7 @@
 
 #include "render/opengl/render_wnd_gl.h"
 #include "render/render_wnd.h"
+#include "render/sdl2/render_wnd_sdl.h"
 
 enum RenderType
 {
@@ -19,7 +20,7 @@ public:
         case kOpenGL:
             return new RenderWndGL(parent);
         case kSDL2:
-            return nullptr;
+            return new RenderWndSDL(parent);
         default:
             return nullptr;
         }

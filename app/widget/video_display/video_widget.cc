@@ -68,7 +68,9 @@ void VideoWidget::contextMenuEvent(QContextMenuEvent* event)
 
 void VideoWidget::InitUi()
 {
-    render_wnd_ = RenderFactory::Create(kOpenGL, this);
+    int type = Singleton<Config>::Instance()->AppConfigData("video_param", "render_type").toInt();
+    render_wnd_ = RenderFactory::Create(static_cast<RenderType>(type), this);
+
     InitMenu();
 
     fps_ = Singleton<Config>::Instance()->AppConfigData("video_param", "fps").toInt();
