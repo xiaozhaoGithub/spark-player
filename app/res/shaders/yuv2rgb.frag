@@ -26,11 +26,11 @@ void main()
     float v = 0.0;
 
     if(format == 0 ||
-	   format == 12 ||
-       format == 13 ) {
+	   format == 1 ||
+       format == 3 ) {
         u = texture2D(u_tex, tex_coords).r;
         v = texture2D(v_tex, tex_coords).r;
-    } else if(format == 23) {
+    } else if(format == 2) {
         u = texture2D(uv_tex, tex_coords).r;
         v = texture2D(uv_tex, tex_coords).g;
     }

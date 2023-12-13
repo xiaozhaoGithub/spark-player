@@ -153,6 +153,8 @@ void VideoWidget::OnOpenStreamSuccess()
 
 void VideoWidget::OnOpenStreamFail()
 {
+    OnStreamClose();
+
     QMessageBox::warning(this, tr("Warning"), tr("Failed to open stream"));
 }
 

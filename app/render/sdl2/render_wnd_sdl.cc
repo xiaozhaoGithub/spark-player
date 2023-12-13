@@ -21,6 +21,7 @@ static SDL_PixelFormatEnum get_sdl_fmt(int fmt)
 
 RenderWndSDL::RenderWndSDL(QWidget* parent)
     : QWidget(parent)
+    , wnd_(nullptr)
     , renderer_(nullptr)
     , video_tex_(nullptr)
     , frame_w_(0)
@@ -28,34 +29,9 @@ RenderWndSDL::RenderWndSDL(QWidget* parent)
     , frame_format_(0)
     , frame_pitch_(0)
 {
-    // Init only once
-    if (!sdl_inited_.test_and_set()) {
-        SDL_Init(SDL_INIT_VIDEO);
-    }
+    setStyleSheet("QWidget {background: black;}");
 
-    wnd_ = SDL_CreateWindowFrom(reinterpret_cast<void*>(winId()));
-    if (!wnd_) {
-        SPDLOG_ERROR("Faild to create SDL window from this: {0} desc: {1}",
-                     static_cast<void*>(this), SDL_GetError());
-    }
-    renderer_ = SDL_CreateRenderer(wnd_, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (!renderer_) {
-        SPDLOG_WARN("Faild to create SDL accelerated renderer, try a normal renderer.");
-
-        renderer_ = SDL_CreateRenderer(wnd_, -1, 0);
-        if (!renderer_) {
-            SPDLOG_ERROR("Faild to create SDL renderer desc: {0}.", SDL_GetError());
-            return; // TODO
-        }
-    }
-
-    SDL_RendererInfo renderer_info;
-    SDL_GetRendererInfo(renderer_, &renderer_info);
-    if (renderer_info.num_texture_formats == 0) {
-        SPDLOG_ERROR("Faild to create SDL renderer desc: {0}.", SDL_GetError());
-    }
-
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+    InitSDL();
 }
 
 RenderWndSDL::~RenderWndSDL()
@@ -97,7 +73,7 @@ void RenderWndSDL::Render(const DecodeFrame& frame)
             }
 
             void* pixels = nullptr;
-            int pitch;
+            int pitch = 0;
             if (SDL_LockTexture(video_tex_, nullptr, &pixels, &pitch) < 0) {
                 return;
             }
@@ -116,4 +92,41 @@ void RenderWndSDL::Render(const DecodeFrame& frame)
     }
 
     SDL_RenderPresent(renderer_);
+}
+
+void RenderWndSDL::update()
+{
+    Render(DecodeFrame());
+}
+
+void RenderWndSDL::InitSDL()
+{
+    // Init only once
+    if (!sdl_inited_.test_and_set()) {
+        SDL_Init(SDL_INIT_VIDEO);
+    }
+
+    wnd_ = SDL_CreateWindowFrom(reinterpret_cast<void*>(winId()));
+    if (!wnd_) {
+        SPDLOG_ERROR("Faild to create SDL window from this: {0} desc: {1}",
+                     static_cast<void*>(this), SDL_GetError());
+    }
+
+    renderer_ = SDL_CreateRenderer(wnd_, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (!renderer_) {
+        SPDLOG_WARN("Faild to create SDL accelerated renderer, try a normal renderer.");
+
+        renderer_ = SDL_CreateRenderer(wnd_, -1, 0);
+        if (!renderer_) {
+            SPDLOG_ERROR("Faild to create SDL renderer desc: {0}.", SDL_GetError());
+        }
+    }
+
+    SDL_RendererInfo renderer_info;
+    SDL_GetRendererInfo(renderer_, &renderer_info);
+    if (renderer_info.num_texture_formats == 0) {
+        SPDLOG_ERROR("Faild to create SDL renderer desc: {0}.", SDL_GetError());
+    }
+
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 }

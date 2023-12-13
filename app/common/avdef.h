@@ -11,9 +11,10 @@ typedef enum
 
 typedef enum
 {
-    PIX_FMT_YUV420P,
+    PIX_FMT_IYUV,
     PIX_FMT_YUVJ422P,
     PIX_FMT_NV12,
+    PIX_FMT_RGB,
 } PixelFormat;
 
 #endif

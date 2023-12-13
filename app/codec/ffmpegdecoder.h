@@ -30,17 +30,29 @@ public:
     int GetPacket(AVPacket* pkt);
     DecodeFrame* GetFrame();
 
-    bool is_end() { return end_; }
     AVStream* video_stream() { return video_stream_; }
     int fps() { return fps_; }
 
+    bool is_end() { return end_; }
+
+    int64_t block_start_time() { return block_start_time_; }
+    int64_t block_timeout() { return block_timeout_; }
+
 private:
-    void FFmpegError(int error_code);
-    bool AllocResource();
-    void FreeResource();
-    bool InitInputFmtParams(std::string& url, AVInputFormat** fmt);
-    void InitDecodeParams();
+    bool OpenInputFormat();
+    bool FindStream();
+    bool OpenDecoder();
+    bool AllocFrame();
+    bool DoScalePrepare();
+
+    bool InputFmt(std::string& url, AVInputFormat** fmt);
+    AVDictionary* InputFmtOptions();
+
     void InitHwDecode(const AVCodec* codec);
+
+    AVPixelFormat GetDstPixFormat();
+    void ResizeDecodeFrame(int dst_w, int dst_h, int dst_pix_fmt);
+
     bool GpuDataToCpu();
 
     // callback
@@ -64,9 +76,11 @@ private:
     uint8_t* data_[4];
     int linesize_[4];
 
+    int64_t block_start_time_;
+    int64_t block_timeout_;
+
     int64_t video_duration_;
     int fps_;
-    int64_t frame_num_;
     bool end_;
 };
 

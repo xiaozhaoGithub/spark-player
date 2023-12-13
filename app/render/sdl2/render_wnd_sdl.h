@@ -14,7 +14,10 @@ public:
 protected:
     void Render(const DecodeFrame& frame) override;
     void setGeometry(const QRect& rect) override { QWidget::setGeometry(rect); }
-    void update() override { QWidget::update(); }
+    void update() override;
+
+private:
+    void InitSDL();
 
 private:
     static std::atomic_flag sdl_inited_;

@@ -21,7 +21,7 @@ void RenderWndGL::Render(const DecodeFrame& frame)
 
     format_ = frame.format;
     switch (format_) {
-    case PIX_FMT_YUV420P: {
+    case PIX_FMT_IYUV: {
         tex_width = tex_width / 2;
         tex_height = tex_height / 2;
         ResetTexYuv(frame, tex_width, tex_height);
@@ -69,7 +69,7 @@ void RenderWndGL::resizeGL(int w, int h)
 void RenderWndGL::paintGL()
 {
     switch (format_) {
-    case PIX_FMT_YUV420P:
+    case PIX_FMT_IYUV:
     case PIX_FMT_YUVJ422P: {
         renderer_->Draw(y_tex_, u_tex_, v_tex_, format_, QVector2D(width(), height()));
         break;
