@@ -12,7 +12,7 @@ add_subdirectory(config)
 add_subdirectory(util)
 add_subdirectory(media_play)
 
-QT5_ADD_RESOURCES(RCC_FILES ffmpeg-player.qrc)
+QT5_ADD_RESOURCES(RCC_FILES spark-player.qrc)
 
 if (WIN32)
 	# Preserve folder structure in visual studio
