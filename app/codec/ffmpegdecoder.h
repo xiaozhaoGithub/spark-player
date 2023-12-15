@@ -53,7 +53,9 @@ private:
     AVPixelFormat GetDstPixFormat();
     void ResizeDecodeFrame(int dst_w, int dst_h, int dst_pix_fmt);
 
-    bool GpuDataToCpu();
+    bool GpuDataToCpu(AVFrame* src, AVFrame* dst);
+
+    bool Scale(AVFrame* src);
 
     // callback
     static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* fmt);
@@ -68,6 +70,7 @@ private:
     AVPacket* packet_;
     AVFrame* frame_;
 
+    bool hw_decode_;
     AVFrame* hw_frame_;
     AVBufferRef* hw_dev_ctx_;
     std::vector<uint32_t> hw_devices_;
@@ -79,7 +82,6 @@ private:
     int64_t block_start_time_;
     int64_t block_timeout_;
 
-    int64_t video_duration_;
     int fps_;
     bool end_;
 };

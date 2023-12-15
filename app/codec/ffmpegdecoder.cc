@@ -16,6 +16,7 @@ FFmpegDecoder::FFmpegDecoder()
     , video_stream_(nullptr)
     , packet_(nullptr)
     , frame_(nullptr)
+    , hw_decode_(false)
     , hw_frame_(nullptr)
     , hw_dev_ctx_(nullptr)
     , block_start_time_(0)
@@ -23,6 +24,9 @@ FFmpegDecoder::FFmpegDecoder()
     , fps_(0)
     , end_(true)
 {
+    memset(data_, 0, sizeof(uint8_t*) * 4);
+    memset(linesize_, 0, sizeof(int) * 4);
+
     // Find hardware codec devices.
     AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
     while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
@@ -139,24 +143,24 @@ DecodeFrame* FFmpegDecoder::GetFrame()
         return nullptr;
     }
 
-    // The first byte of hw data is nullptr.
-    AVFrame* tmp_frame = frame_;
-    if (!frame_->data[0]) {
-        tmp_frame = hw_frame_;
-        bool success = GpuDataToCpu();
+    AVFrame* frame = frame_;
+    if (hw_decode_) {
+        frame = hw_frame_;
+
+        ret = GpuDataToCpu(frame_, hw_frame_);
         av_frame_unref(frame_);
 
-        if (!success) {
+        if (!ret) {
             return nullptr;
         }
     }
 
-    int out_h = sws_scale(sws_ctx_, tmp_frame->data, tmp_frame->linesize, 0, tmp_frame->height,
-                          data_, linesize_);
-    if (out_h <= 0 || out_h != tmp_frame->height) {
+    ret = Scale(frame);
+    av_frame_unref(frame);
+
+    if (!ret) {
         return nullptr;
     }
-    decode_frame_.ts = tmp_frame->pts * av_q2d(video_stream_->time_base) * 1000;
 
     return &decode_frame_;
 }
@@ -193,14 +197,6 @@ bool FFmpegDecoder::DoScalePrepare()
 
     // Convert to uniform format.
     AVPixelFormat dst_pix_fmt = GetDstPixFormat();
-    if (!sws_ctx_) {
-        sws_ctx_ = sws_getContext(src_w, src_h, codec_ctx_->pix_fmt, dst_w, dst_h, dst_pix_fmt,
-                                  SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
-        if (!sws_ctx_) {
-            SPDLOG_ERROR("Failed to get sws context.");
-            return false;
-        }
-    }
     ResizeDecodeFrame(dst_w, dst_h, dst_pix_fmt);
 
     return true;
@@ -315,9 +311,9 @@ bool FFmpegDecoder::OpenDecoder()
         return false;
     }
 
-    bool enable_hw_dc =
+    hw_decode_ =
         Singleton<Config>::Instance()->AppConfigData("video_param", "enable_hw_decode", false).toBool();
-    if (enable_hw_dc) {
+    if (hw_decode_) {
         InitHwDecode(codec);
     }
 
@@ -463,25 +459,51 @@ void FFmpegDecoder::ResizeDecodeFrame(int dst_w, int dst_h, int dst_pix_fmt)
     }
 }
 
-bool FFmpegDecoder::GpuDataToCpu()
+bool FFmpegDecoder::GpuDataToCpu(AVFrame* src, AVFrame* dst)
 {
     const AVPixelFormat* format = static_cast<const AVPixelFormat*>(codec_ctx_->opaque);
-    if (frame_->format != *format) {
+    if (src->format != *format) {
         return false;
     }
 
     // int ret = av_hwframe_transfer_data(hw_frame_, frame_, 0);
-    int ret = av_hwframe_map(hw_frame_, frame_, 0);
+    int ret = av_hwframe_map(dst, src, 0);
     if (ret != 0) {
         FFmpegHelper::FFmpegError(ret);
         return false;
     }
 
-    hw_frame_->width = frame_->width;
-    hw_frame_->height = frame_->height;
+    dst->width = src->width;
+    dst->height = src->height;
 
     // Copy frame meta data.
-    av_frame_copy_props(hw_frame_, frame_);
+    av_frame_copy_props(dst, src);
+
+    return true;
+}
+
+bool FFmpegDecoder::Scale(AVFrame* src)
+{
+    AVPixelFormat dst_pix_fmt = GetDstPixFormat();
+    if (!sws_ctx_) {
+        int src_w = codec_ctx_->width;
+        int src_h = codec_ctx_->height;
+
+        int dst_w = src_w >> 2 << 2;
+        int dst_h = src_h;
+
+        sws_ctx_ = sws_getContext(src_w, src_h, static_cast<AVPixelFormat>(src->format), dst_w,
+                                  dst_h, dst_pix_fmt, SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
+        if (!sws_ctx_) {
+            SPDLOG_ERROR("Failed to get sws context.");
+            return false;
+        }
+    }
+    int out_h = sws_scale(sws_ctx_, src->data, src->linesize, 0, src->height, data_, linesize_);
+    if (out_h <= 0 || out_h != src->height) {
+        return false;
+    }
+    decode_frame_.ts = src->pts * av_q2d(video_stream_->time_base) * 1000;
 
     return true;
 }
