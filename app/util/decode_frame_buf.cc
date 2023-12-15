@@ -20,9 +20,9 @@ bool DecodeFrameBuf::Push(DecodeFrame* frame)
 
         // dropped frame
         if (frames_.size() >= cache_num_) {
-            DecodeFrame& frame = frames_.front();
+            DecodeFrame& head_frame = frames_.front();
             frames_.pop_front();
-            free(frame.buf.len);
+            free(head_frame.buf.len);
         }
 
         if (isNull()) {

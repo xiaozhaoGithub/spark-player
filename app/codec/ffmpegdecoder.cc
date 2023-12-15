@@ -44,7 +44,7 @@ FFmpegDecoder::~FFmpegDecoder()
 
 static int OnInterrupt(void* opaque)
 {
-    auto decoder = static_cast<FFmpegDecoder*>(opaque);
+    const FFmpegDecoder* decoder = static_cast<FFmpegDecoder*>(opaque);
     if (!decoder)
         return 0;
 
@@ -78,9 +78,7 @@ bool FFmpegDecoder::Open()
         return false;
     }
 
-    if (!DoScalePrepare()) {
-        return false;
-    }
+    DoScalePrepare();
 
     SPDLOG_INFO("resolution: [w:{0}, h:{1}] fps:{2} frames:{3} codec name:{4}",
                 video_stream_->codecpar->width, video_stream_->codecpar->height, fps_,
@@ -187,7 +185,7 @@ bool FFmpegDecoder::AllocFrame()
     return true;
 }
 
-bool FFmpegDecoder::DoScalePrepare()
+void FFmpegDecoder::DoScalePrepare()
 {
     int src_w = codec_ctx_->width;
     int src_h = codec_ctx_->height;
@@ -198,8 +196,6 @@ bool FFmpegDecoder::DoScalePrepare()
     // Convert to uniform format.
     AVPixelFormat dst_pix_fmt = GetDstPixFormat();
     ResizeDecodeFrame(dst_w, dst_h, dst_pix_fmt);
-
-    return true;
 }
 
 void FFmpegDecoder::Close()
@@ -459,7 +455,7 @@ void FFmpegDecoder::ResizeDecodeFrame(int dst_w, int dst_h, int dst_pix_fmt)
     }
 }
 
-bool FFmpegDecoder::GpuDataToCpu(AVFrame* src, AVFrame* dst)
+bool FFmpegDecoder::GpuDataToCpu(AVFrame* src, AVFrame* dst) const
 {
     const AVPixelFormat* format = static_cast<const AVPixelFormat*>(codec_ctx_->opaque);
     if (src->format != *format) {

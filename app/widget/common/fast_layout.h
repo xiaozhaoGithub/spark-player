@@ -8,19 +8,19 @@
 class CHBoxLayout : public QHBoxLayout
 {
 public:
-    CHBoxLayout(QWidget* parent = nullptr, int margin = 0, int spacing = 0);
+    explicit CHBoxLayout(QWidget* parent = nullptr, int margin = 0, int spacing = 0);
 };
 
 class CVBoxLayout : public QVBoxLayout
 {
 public:
-    CVBoxLayout(QWidget* parent = nullptr, int margin = 0, int spacing = 0);
+    explicit CVBoxLayout(QWidget* parent = nullptr, int margin = 0, int spacing = 0);
 };
 
 class CGridLayout : public QGridLayout
 {
 public:
-    CGridLayout(QWidget* parent = nullptr, int margin = 0, int spacing = 0);
+    explicit CGridLayout(QWidget* parent = nullptr, int margin = 0, int spacing = 0);
 };
 
 #endif

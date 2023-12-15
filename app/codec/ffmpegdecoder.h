@@ -18,11 +18,11 @@ extern "C"
 class FFmpegDecoder
 {
 public:
-    explicit FFmpegDecoder();
+    FFmpegDecoder();
     ~FFmpegDecoder();
 
     void set_media(const MediaInfo& media) { media_ = media; }
-    MediaInfo media() { return media_; }
+    MediaInfo media() const { return media_; }
 
     bool Open();
     void Close();
@@ -31,29 +31,30 @@ public:
     DecodeFrame* GetFrame();
 
     AVStream* video_stream() { return video_stream_; }
-    int fps() { return fps_; }
+    int fps() const { return fps_; }
 
-    bool is_end() { return end_; }
+    bool is_end() const { return end_; }
 
-    int64_t block_start_time() { return block_start_time_; }
-    int64_t block_timeout() { return block_timeout_; }
+    int64_t block_start_time() const { return block_start_time_; }
+    int64_t block_timeout() const { return block_timeout_; }
 
 private:
     bool OpenInputFormat();
     bool FindStream();
     bool OpenDecoder();
     bool AllocFrame();
-    bool DoScalePrepare();
+    void DoScalePrepare();
+
+    static AVPixelFormat GetDstPixFormat();
 
     bool InputFmt(std::string& url, AVInputFormat** fmt);
     AVDictionary* InputFmtOptions();
 
     void InitHwDecode(const AVCodec* codec);
 
-    AVPixelFormat GetDstPixFormat();
     void ResizeDecodeFrame(int dst_w, int dst_h, int dst_pix_fmt);
 
-    bool GpuDataToCpu(AVFrame* src, AVFrame* dst);
+    bool GpuDataToCpu(AVFrame* src, AVFrame* dst) const;
 
     bool Scale(AVFrame* src);
 

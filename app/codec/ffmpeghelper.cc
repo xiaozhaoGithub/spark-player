@@ -56,7 +56,6 @@ void FFmpegHelper::DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame
         return;
     }
 
-    int data_size = 0;
     while (ret >= 0) {
         ret = avcodec_receive_frame(codec_ctx, frame);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
@@ -67,7 +66,7 @@ void FFmpegHelper::DecodeAudio(AVCodecContext* codec_ctx, AVPacket* pkt, AVFrame
         }
 
         // Note
-        data_size = av_get_bytes_per_sample(codec_ctx->sample_fmt);
+        int data_size = av_get_bytes_per_sample(codec_ctx->sample_fmt);
         if (data_size < 0) {
             FFmpegError(ret);
             return;
@@ -995,8 +994,8 @@ bool FFmpegHelper::SaveEncodeVideo(const VideoInfo& info, const char* infile, co
     EncodeVideo(codec_ctx, nullptr, pkt, outfile_fp);
 
     // Add sequence end code to have a real MPEG file
-    uint8_t endcode[] = {0, 0, 1, 0xb7};
     if (codec->id == AV_CODEC_ID_MPEG1VIDEO || codec->id == AV_CODEC_ID_MPEG2VIDEO) {
+        uint8_t endcode[] = {0, 0, 1, 0xb7};
         fwrite(endcode, 1, sizeof(endcode), outfile_fp);
     }
 

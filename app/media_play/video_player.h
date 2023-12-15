@@ -18,7 +18,7 @@ public:
     virtual void Stop() = 0;
     virtual void Resume() = 0;
 
-    MediaInfo media() { return media_; }
+    MediaInfo media() const { return media_; }
     void set_media(const MediaInfo& media) { media_ = media; }
 
     void set_event_cb(StreamEventCallback cb) { event_cb_.swap(cb); }
@@ -27,7 +27,7 @@ public:
     bool push_frame(DecodeFrame* frame) { return frame_buf_.Push(frame); };
     bool pop_frame(DecodeFrame* frame) { return frame_buf_.Pop(frame); }
 
-    int fps() { return fps_; }
+    int fps() const { return fps_; }
 
 protected:
     MediaInfo media_;

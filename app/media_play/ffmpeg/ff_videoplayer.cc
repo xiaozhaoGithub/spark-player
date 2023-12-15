@@ -9,10 +9,9 @@
 FFVideoPlayer::FFVideoPlayer(QObject* parent)
     : VideoPlayer()
     , CThread(parent)
-{
-    decoder_ = std::make_unique<FFmpegDecoder>();
-    writer_ = std::make_unique<FFmpegWriter>();
-}
+    , decoder_(new FFmpegDecoder)
+    , writer_(new FFmpegWriter)
+{}
 
 FFVideoPlayer::~FFVideoPlayer()
 {

@@ -7,6 +7,7 @@
 
 RenderWndGL::RenderWndGL(QWidget* parent)
     : QOpenGLWidget(parent)
+    , format_(0)
 {}
 
 RenderWndGL::~RenderWndGL() {}
@@ -22,13 +23,12 @@ void RenderWndGL::Render(const DecodeFrame& frame)
     format_ = frame.format;
     switch (format_) {
     case PIX_FMT_IYUV: {
-        tex_width = tex_width / 2;
-        tex_height = tex_height / 2;
+        tex_width /= 2;
+        tex_height /= 2;
         ResetTexYuv(frame, tex_width, tex_height);
     }
     case PIX_FMT_YUVJ422P: {
         tex_width = tex_width / 2;
-        tex_height = tex_height;
         ResetTexYuv(frame, tex_width, tex_height);
         break;
     }
