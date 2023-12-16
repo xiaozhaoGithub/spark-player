@@ -133,8 +133,8 @@ void CodecVideoDialog::Encode()
     info.gop_size = gop_size_edit_->text().toInt();
     info.max_b_frames = max_b_frames_edit_->text().toInt();
 
-    bool ret = FFmpegHelper::SaveEncodeVideo(info, infile_edit_->text().toStdString().data(),
-                                             outfile_edit_->text().toStdString().data());
+    bool ret = FFmpegHelper::SaveEncodeVideo(info, infile_edit_->text().toStdString().c_str(),
+                                             outfile_edit_->text().toStdString().c_str());
 
     if (ret) {
         QMessageBox::information(this, tr("Info"), tr("Successfully save the encoded video file"));
@@ -149,8 +149,8 @@ void CodecVideoDialog::Transcode()
     info.start_time = start_time_edit_->time().msecsSinceStartOfDay() / 1000;
     info.end_time = end_time_edit_->time().msecsSinceStartOfDay() / 1000;
 
-    bool ret = FFmpegHelper::SaveTranscodeFormat(info, infile_edit_->text().toStdString().data(),
-                                                 outfile_edit_->text().toStdString().data());
+    bool ret = FFmpegHelper::SaveTranscodeFormat(info, infile_edit_->text().toStdString().c_str(),
+                                                 outfile_edit_->text().toStdString().c_str());
 
     if (ret) {
         QMessageBox::information(this, tr("Info"), tr("Successfully save the transcode file"));
@@ -165,8 +165,8 @@ void CodecVideoDialog::Decode()
     info.video_size = QString(decode_w_edit_->text() + "x" + decode_h_edit_->text()).toStdString();
     info.pix_fmt = decode_pix_fmt_combo_->currentData().toString().toInt();
 
-    bool ret = FFmpegHelper::SaveDecodeVideo(info, infile_edit_->text().toStdString().data(),
-                                             outfile_edit_->text().toStdString().data());
+    bool ret = FFmpegHelper::SaveDecodeVideo(info, infile_edit_->text().toStdString().c_str(),
+                                             outfile_edit_->text().toStdString().c_str());
 
     if (ret) {
         QMessageBox::information(this, tr("Info"), tr("Successfully save the decoded video file"));

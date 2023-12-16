@@ -251,14 +251,14 @@ bool FFmpegDecoder::OpenInputFormat()
     fmt_ctx_->interrupt_callback.opaque = this;
 
     AVDictionary* dict = InputFmtOptions();
-    int error_code = avformat_open_input(&fmt_ctx_, url.data(), input_fmt, &dict);
+    int error_code = avformat_open_input(&fmt_ctx_, url.c_str(), input_fmt, &dict);
     av_dict_free(&dict);
     if (error_code != 0) {
         SPDLOG_ERROR("Failed to open input stream.");
         return false;
     }
 
-    av_dump_format(fmt_ctx_, 0, url.data(), 0);
+    av_dump_format(fmt_ctx_, 0, url.c_str(), 0);
 
     return true;
 }

@@ -58,8 +58,8 @@ void ExportStreamDialog::OkClicked()
     auto files = dlg.selectedFiles();
     int media_type = btn_group_->id(btn_group_->checkedButton());
 
-    bool ret = FFmpegHelper::ExportSingleStream(media_type, file_edit_->text().toStdString().data(),
-                                                files.at(0).toStdString().data());
+    bool ret = FFmpegHelper::ExportSingleStream(media_type, file_edit_->text().toStdString().c_str(),
+                                                files.at(0).toStdString().c_str());
 
     if (ret) {
         QMessageBox::information(this, tr("Info"), tr("Successfully to export the stream"));

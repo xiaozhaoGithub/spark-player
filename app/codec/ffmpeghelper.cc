@@ -825,7 +825,7 @@ bool FFmpegHelper::SaveDecodeVideo(const VideoInfo& info, const char* infile, co
 
     int width;
     int height;
-    ret = av_parse_video_size(&width, &height, info.video_size.data());
+    ret = av_parse_video_size(&width, &height, info.video_size.c_str());
     if (ret < 0) {
         SPDLOG_ERROR("Failed to parse video size:{0}.", info.video_size);
         return false;
@@ -890,7 +890,7 @@ bool FFmpegHelper::SaveDecodeVideo(const VideoInfo& info, const char* infile, co
 
 bool FFmpegHelper::SaveEncodeVideo(const VideoInfo& info, const char* infile, const char* outfile)
 {
-    AVCodec* codec = avcodec_find_encoder_by_name(info.codec_name.data());
+    AVCodec* codec = avcodec_find_encoder_by_name(info.codec_name.c_str());
     if (!codec) {
         SPDLOG_ERROR("Failed to find video codec {0}.", info.codec_name);
         return false;
@@ -905,7 +905,7 @@ bool FFmpegHelper::SaveEncodeVideo(const VideoInfo& info, const char* infile, co
 
     int width;
     int height;
-    int ret = av_parse_video_size(&width, &height, info.video_size.data());
+    int ret = av_parse_video_size(&width, &height, info.video_size.c_str());
     if (ret < 0) {
         SPDLOG_ERROR("Failed to parse video size:{0}.", info.video_size);
         return false;

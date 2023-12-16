@@ -83,8 +83,8 @@ void CodecAudioDialog::Encode()
     info.sample_rate = sample_rate_edit_->text().toInt();
     info.channels = channel_combo_->currentData().toInt();
 
-    bool ret = FFmpegHelper::SaveEncodeAudio(info, infile_edit_->text().toStdString().data(),
-                                             outfile_edit_->text().toStdString().data());
+    bool ret = FFmpegHelper::SaveEncodeAudio(info, infile_edit_->text().toStdString().c_str(),
+                                             outfile_edit_->text().toStdString().c_str());
     if (ret) {
         QMessageBox::information(this, tr("Info"), tr("Successfully save the encoded audio file"));
     } else {
@@ -94,8 +94,8 @@ void CodecAudioDialog::Encode()
 
 void CodecAudioDialog::Decode()
 {
-    bool ret = FFmpegHelper::SaveDecodeAudio(infile_edit_->text().toStdString().data(),
-                                             outfile_edit_->text().toStdString().data());
+    bool ret = FFmpegHelper::SaveDecodeAudio(infile_edit_->text().toStdString().c_str(),
+                                             outfile_edit_->text().toStdString().c_str());
     if (ret) {
         QMessageBox::information(this, tr("Info"), tr("Successfully save the decoded audio file"));
     } else {
