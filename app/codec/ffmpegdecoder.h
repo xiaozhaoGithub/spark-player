@@ -30,10 +30,11 @@ public:
     int GetPacket(AVPacket* pkt);
     DecodeFrame* GetFrame();
 
-    AVStream* video_stream() { return video_stream_; }
+    EncodeDataInfo encode_data_info() const { return info_; }
+
     int fps() const { return fps_; }
 
-    bool is_end() const { return end_; }
+    bool end() const { return end_; }
 
     int64_t block_start_time() const { return block_start_time_; }
     int64_t block_timeout() const { return block_timeout_; }
@@ -44,6 +45,7 @@ private:
     bool OpenDecoder();
     bool AllocFrame();
     void DoScalePrepare();
+    void FillEncodeData();
 
     static AVPixelFormat GetDstPixFormat();
 
@@ -56,6 +58,7 @@ private:
 
     bool GpuDataToCpu(AVFrame* src, AVFrame* dst) const;
 
+    void AlignSize(int src_w, int src_h, int* dst_w, int* dst_h);
     bool Scale(AVFrame* src);
 
     // callback
@@ -79,6 +82,8 @@ private:
     DecodeFrame decode_frame_;
     uint8_t* data_[4];
     int linesize_[4];
+
+    EncodeDataInfo info_;
 
     int64_t block_start_time_;
     int64_t block_timeout_;

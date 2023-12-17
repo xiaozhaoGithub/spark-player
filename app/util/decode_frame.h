@@ -14,6 +14,7 @@ public:
         h = frame.h;
         ts = frame.ts;
         format = frame.format;
+        pict_type_ = frame.pict_type_;
     }
 
     bool IsNull() const { return w == 0 || h == 0 || buf.isNull(); }
@@ -24,6 +25,7 @@ public:
     int h;
     uint64_t ts; // ms
     int format;
+    int pict_type_;
 };
 
 #endif

@@ -10,7 +10,6 @@ FFVideoPlayer::FFVideoPlayer(QObject* parent)
     : VideoPlayer()
     , CThread(parent)
     , decoder_(new FFmpegDecoder)
-    , writer_(new FFmpegWriter)
 {}
 
 FFVideoPlayer::~FFVideoPlayer()
@@ -45,24 +44,24 @@ void FFVideoPlayer::Resume()
     }
 }
 
-void FFVideoPlayer::StartRecord()
+void FFVideoPlayer::StartRecord(const char* file)
 {
-    QString filename =
-        QApplication::applicationDirPath() + "/"
-        + QString("video_record_%1.mp4").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss"));
+    if (writer_)
+        return;
 
-    MediaInfo media;
-    media.type = decoder_->media().type;
-    media.src = filename.toStdString();
+    writer_ = std::make_unique<FFmpegWriter>();
 
-    writer_->set_media(media);
-    writer_->Open(decoder_->video_stream());
+    auto media_info = media();
+    media_info.src = file;
+    writer_->set_media(media_info);
 }
 
 void FFVideoPlayer::StopRecord()
 {
-    writer_->Close();
-    // emit RecordState(false);
+    if (!writer_)
+        return;
+
+    writer_->Stop();
 }
 
 bool FFVideoPlayer::DoPrepare()
@@ -72,6 +71,7 @@ bool FFVideoPlayer::DoPrepare()
         event_cb(kOpenStreamFail);
         return false;
     }
+    info_ = decoder_->encode_data_info();
 
     fps_ = decoder_->fps();
     set_sleep_policy(kUntil, 1000 / fps_);
@@ -91,24 +91,53 @@ void FFVideoPlayer::DoTask()
 
         DecodeFrame* frame = decoder_->GetFrame();
         if (frame) {
-            // writer_->Write(frame);
             push_frame(frame);
 
             CThread::Sleep();
         } else {
-            if (decoder_->is_end()) {
+            if (decoder_->end()) {
                 set_state(kStop);
+                StopRecord();
 
                 event_cb(kStreamEnd);
             }
         }
+
+        DoRecordTask(frame);
     }
 }
 
 void FFVideoPlayer::DoFinish()
 {
     decoder_->Close();
-    writer_->Close();
 
     event_cb(kStreamClose);
+}
+
+void FFVideoPlayer::DoRecordTask(DecodeFrame* frame)
+{
+    if (!writer_) {
+        return;
+    }
+
+    if (frame) {
+        if (!writer_->opened()) {
+            bool opened = writer_->Open(info_);
+            if (!opened) {
+                writer_->Stop();
+            }
+        }
+
+        if (writer_->opened()) {
+            writer_->Write(*frame);
+        }
+    }
+
+    if (writer_->is_stop()) {
+        if (writer_->opened()) {
+            writer_->Close();
+        }
+
+        writer_.reset();
+    }
 }

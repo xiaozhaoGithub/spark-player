@@ -1,67 +1,64 @@
 #include "ffmpegwriter.h"
 
+#include "ffmpeghelper.h"
 #include "spdlog/spdlog.h"
 
 FFmpegWriter::FFmpegWriter()
-    : fmt_ctx_(nullptr)
+    : opened_(false)
+    , stop_(false)
+    , fmt_ctx_(nullptr)
     , codec_(nullptr)
     , codec_ctx_(nullptr)
-    , new_stream_(nullptr)
+    , video_stream_(nullptr)
     , packet_(nullptr)
     , header_written_(false)
     , frame_index_(0)
 {}
 
-FFmpegWriter::~FFmpegWriter()
-{
-    Close();
-}
+FFmpegWriter::~FFmpegWriter() {}
 
 void FFmpegWriter::set_media(const MediaInfo& media)
 {
-    media_.reset(new MediaInfo(media));
+    media_ = media;
 }
 
-bool FFmpegWriter::Open(AVStream* stream)
+bool FFmpegWriter::Open(const EncodeDataInfo& info)
 {
-    if (!media_)
-        return false;
-
-    const char* filename = media_->src.data();
+    const char* filename = media_.src.c_str();
     SPDLOG_INFO("Record filename: {0}", filename);
 
-    codec_ = avcodec_find_encoder(stream->codecpar->codec_id);
+    AVCodecID codec_id = AV_CODEC_ID_NONE;
+    AVPixelFormat pix_fmt = AV_PIX_FMT_YUV420P;
+    if (info.compression == H264) {
+        codec_id = AV_CODEC_ID_H264;
+    } else if (info.compression == HEVC) {
+        codec_id = AV_CODEC_ID_HEVC;
+    } else if (info.compression == MJPEG) {
+        codec_id = AV_CODEC_ID_MJPEG;
+        pix_fmt = AV_PIX_FMT_YUVJ420P;
+    }
+
+    codec_ = avcodec_find_encoder(codec_id);
     if (!codec_) {
-        SPDLOG_ERROR("Failed to find encoder for id: {0}", stream->codecpar->codec_id);
+        SPDLOG_ERROR("Failed to find encoder for id: {0}", codec_id);
         return false;
     }
     SPDLOG_INFO("Find the encoder name: {0}", codec_->name);
 
-    int error_code = 0;
-
-    switch (media_->type) {
-    case kCapture:
-        error_code = avformat_alloc_output_context2(&fmt_ctx_, nullptr, codec_->name, filename);
-        break;
-    case kFile:
-        error_code = avformat_alloc_output_context2(&fmt_ctx_, nullptr, "h264", filename);
-        break;
-    case kNetwork:
-        error_code = avformat_alloc_output_context2(&fmt_ctx_, nullptr, nullptr, filename);
-        break;
-    default:
-        SPDLOG_ERROR("Failed to open this media type {0}.", media_->type);
-        return false;
-    }
-
+    int error_code = avformat_alloc_output_context2(&fmt_ctx_, nullptr, nullptr, filename);
     if (error_code < 0) {
-        FFmpegError(error_code);
-        return false;
+        SPDLOG_ERROR("Failed to alloc output context from file extension.");
+
+        error_code = avformat_alloc_output_context2(&fmt_ctx_, nullptr, "mp4", filename);
+        if (error_code) {
+            SPDLOG_ERROR("Failed to alloc output context for mp4.");
+            return false;
+        }
     }
 
     error_code = avio_open(&fmt_ctx_->pb, filename, AVIO_FLAG_WRITE);
     if (error_code < 0) {
-        FFmpegError(error_code);
+        SPDLOG_ERROR("Failed to open avio filename: {0}.", filename);
         return false;
     }
 
@@ -72,69 +69,102 @@ bool FFmpegWriter::Open(AVStream* stream)
     }
 
     // Set some necessary parameters before opening the encoder.
-    codec_ctx_->bit_rate = 400000;
-    // resolution must be a multiple of two
-    codec_ctx_->width = stream->codecpar->width;
-    codec_ctx_->height = stream->codecpar->height;
-    codec_ctx_->time_base = {1, 25};
-    codec_ctx_->framerate = {25, 1};
+    codec_ctx_->bit_rate = 8500000;
+    // Resolution must be a multiple of two
+    codec_ctx_->width = info.w;
+    codec_ctx_->height = info.h;
+    codec_ctx_->time_base = {1, info.fps};
+    codec_ctx_->framerate = {info.fps, 1};
     codec_ctx_->gop_size = 10;
-    codec_ctx_->max_b_frames = 1;
-    codec_ctx_->pix_fmt = (AVPixelFormat)stream->codecpar->format;
-    // codec_ctx_->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+    codec_ctx_->max_b_frames = 0;
+    codec_ctx_->pix_fmt = pix_fmt;
+    codec_ctx_->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
     error_code = avcodec_open2(codec_ctx_, nullptr, nullptr);
     if (error_code < 0) {
-        FFmpegError(error_code);
+        FFmpegHelper::FFmpegError(error_code);
         return false;
     }
 
-    new_stream_ = avformat_new_stream(fmt_ctx_, nullptr);
-    if (!new_stream_) {
-        SPDLOG_ERROR("Failed to create new stream.");
+    video_stream_ = avformat_new_stream(fmt_ctx_, nullptr);
+    if (!video_stream_) {
+        SPDLOG_ERROR("Failed to create new video stream.");
         return false;
     }
 
-    error_code = avcodec_parameters_from_context(new_stream_->codecpar, codec_ctx_);
+    error_code = avcodec_parameters_from_context(video_stream_->codecpar, codec_ctx_);
     if (error_code < 0) {
-        FFmpegError(error_code);
+        FFmpegHelper::FFmpegError(error_code);
         return false;
     }
 
+    // note
     error_code = avformat_write_header(fmt_ctx_, nullptr);
     if (error_code < 0) {
-        FFmpegError(error_code);
+        FFmpegHelper::FFmpegError(error_code);
         return false;
     }
-
     header_written_ = true;
 
-    return AllocResource();
-}
-
-bool FFmpegWriter::Write(AVFrame* frame)
-{
-    std::unique_lock<std::mutex> lock(mutex_);
-
-    if (!packet_)
+    frame_ = av_frame_alloc();
+    if (!frame_) {
+        SPDLOG_ERROR("Failed to alloc frame.");
         return false;
+    }
+    frame_->format = codec_ctx_->pix_fmt;
+    frame_->width = codec_ctx_->width;
+    frame_->height = codec_ctx_->height;
+    av_frame_get_buffer(frame_, 1);
 
-    if (frame) {
-        frame->pts = frame_index_++;
+    packet_ = av_packet_alloc();
+    if (!packet_) {
+        SPDLOG_ERROR("Failed to alloc packet.");
+        return false;
     }
 
-    int ret = avcodec_send_frame(codec_ctx_, frame);
+    opened_ = true;
+
+    return true;
+}
+
+bool FFmpegWriter::Write(const DecodeFrame& frame)
+{
+    frame_->pts = frame_index_++;
+
+    av_image_fill_arrays(frame_->data, frame_->linesize, (const uint8_t*)frame.buf.base,
+                         static_cast<AVPixelFormat>(frame_->format), frame_->width, frame_->height, 1);
+
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    int ret = 0;
+    if (frame.IsNull()) {
+        ret = avcodec_send_frame(codec_ctx_, nullptr);
+    } else {
+        ret = avcodec_send_frame(codec_ctx_, frame_);
+    }
+
+    if (ret < 0) {
+        FFmpegHelper::FFmpegError(ret);
+        return false;
+    }
+
     while (ret >= 0) {
         ret = avcodec_receive_packet(codec_ctx_, packet_);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-            return false;
+            break;
         } else if (ret < 0) {
-            FFmpegError(ret);
+            FFmpegHelper::FFmpegError(ret);
+            return false;
+        }
+
+        av_packet_rescale_ts(packet_, codec_ctx_->time_base, video_stream_->time_base);
+        ret = av_interleaved_write_frame(fmt_ctx_, packet_);
+        if (ret < 0) {
+            FFmpegHelper::FFmpegError(ret);
+            av_packet_unref(packet_);
             break;
         }
 
-        av_packet_rescale_ts(packet_, codec_ctx_->time_base, new_stream_->time_base);
-        av_write_frame(fmt_ctx_, packet_);
         av_packet_unref(packet_);
     }
 
@@ -143,8 +173,8 @@ bool FFmpegWriter::Write(AVFrame* frame)
 
 void FFmpegWriter::Close()
 {
-    // Write null frame to represent end flag.
-    Write(nullptr);
+    // Flush encoder
+    Write(DecodeFrame());
 
     std::unique_lock<std::mutex> lock(mutex_);
 
@@ -154,7 +184,7 @@ void FFmpegWriter::Close()
 
             int error_code = av_write_trailer(fmt_ctx_);
             if (error_code < 0) {
-                FFmpegError(error_code);
+                FFmpegHelper::FFmpegError(error_code);
                 return;
             }
             SPDLOG_INFO("Stop record.");
@@ -163,25 +193,9 @@ void FFmpegWriter::Close()
     }
 
     frame_index_ = 0;
+    opened_ = false;
+
     FreeResource();
-}
-
-void FFmpegWriter::FFmpegError(int error_code)
-{
-    char error_buf[1024];
-    av_strerror(error_code, error_buf, sizeof(error_buf));
-    SPDLOG_ERROR("Error code: {0} desc: {1}", error_code, error_buf);
-}
-
-bool FFmpegWriter::AllocResource()
-{
-    packet_ = av_packet_alloc();
-    if (!packet_) {
-        SPDLOG_ERROR("Failed to alloc packet.");
-        return false;
-    }
-
-    return true;
 }
 
 void FFmpegWriter::FreeResource()
@@ -193,6 +207,10 @@ void FFmpegWriter::FreeResource()
 
     if (codec_ctx_) {
         avcodec_free_context(&codec_ctx_);
+    }
+
+    if (frame_) {
+        av_frame_free(&frame_);
     }
 
     if (packet_) {

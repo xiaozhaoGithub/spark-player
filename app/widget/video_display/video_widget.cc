@@ -13,10 +13,16 @@ VideoWidget::VideoWidget(QWidget* parent)
     , video_player_(nullptr)
     , play_state_(kStop)
     , fps_(0)
+    , recording_(false)
 {
     qRegisterMetaType<StreamEventType>("StreamEventType");
 
     InitUi();
+}
+
+VideoWidget::~VideoWidget()
+{
+    Stop();
 }
 
 void VideoWidget::Open(const MediaInfo& media)
@@ -40,18 +46,39 @@ void VideoWidget::Stop()
     if (!video_player_ || play_state_ == kStop)
         return;
 
+    render_timer_->stop();
+
+    StopRecord();
+
     play_state_ = kStop;
     video_player_->Stop();
+
+    SAFE_FREE(video_player_);
 }
 
 void VideoWidget::StartRecord()
 {
-    // video_player_->StartRecord();
+    if (!video_player_)
+        return;
+
+    QString filename =
+        QApplication::applicationDirPath() + "/"
+        + QString("record_%1.mp4").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss"));
+
+    MediaInfo media_info = video_player_->media();
+    media_info.src = filename.toStdString();
+
+    video_player_->StartRecord(filename.toStdString().c_str());
+
+    recording_ = true;
 }
 
 void VideoWidget::StopRecord()
 {
-    // video_player_->StopRecord();
+    video_player_->StopRecord();
+
+    recording_ = false;
+    // emit RecordState(false);
 }
 
 void VideoWidget::resizeEvent(QResizeEvent* event)
@@ -162,11 +189,9 @@ void VideoWidget::OnStreamEnd() {}
 
 void VideoWidget::OnStreamClose()
 {
-    play_state_ = kStop;
-    render_timer_->stop();
-    render_wnd_->update();
+    Stop();
 
-    SAFE_FREE(video_player_);
+    render_wnd_->update();
 
     emit StreamClosed();
 }

@@ -17,4 +17,20 @@ typedef enum
     PIX_FMT_RGB,
 } PixelFormat;
 
+typedef enum
+{
+    H264,
+    HEVC,
+    MJPEG,
+} EncodeFormat;
+
+
+typedef struct
+{
+    EncodeFormat compression;
+    int w;
+    int h;
+    int fps;
+} EncodeDataInfo;
+
 #endif

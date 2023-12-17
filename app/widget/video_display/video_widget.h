@@ -12,6 +12,7 @@ class VideoWidget : public QWidget
     Q_OBJECT
 public:
     explicit VideoWidget(QWidget* parent = nullptr);
+    ~VideoWidget();
 
     void Open(const MediaInfo& media);
     void Pause();
@@ -65,6 +66,10 @@ private:
     QTimer* render_timer_;
     RenderWnd* render_wnd_;
     int fps_;
+
+    // encoder
+    bool recording_;
+    std::unique_ptr<FFmpegWriter> writer_;
 };
 
 #endif

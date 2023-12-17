@@ -23,8 +23,8 @@ public:
     void Stop() override;
     void Resume() override;
 
-    void StartRecord();
-    void StopRecord();
+    void StartRecord(const char* file) override;
+    void StopRecord() override;
 
 protected:
     bool DoPrepare() override;
@@ -32,10 +32,14 @@ protected:
     void DoFinish() override;
 
 private:
+    void DoRecordTask(DecodeFrame* frame);
+
+private:
     std::unique_ptr<FFmpegDecoder> decoder_;
     std::unique_ptr<FFmpegWriter> writer_;
 
     QByteArray filename_;
+    EncodeDataInfo info_;
 };
 
 #endif

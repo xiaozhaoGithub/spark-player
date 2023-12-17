@@ -18,6 +18,9 @@ public:
     virtual void Stop() = 0;
     virtual void Resume() = 0;
 
+    virtual void StartRecord(const char*) = 0;
+    virtual void StopRecord() = 0;
+
     MediaInfo media() const { return media_; }
     void set_media(const MediaInfo& media) { media_ = media; }
 

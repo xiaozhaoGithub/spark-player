@@ -1,6 +1,7 @@
 #ifndef FFMPEGWRITER_H_
 #define FFMPEGWRITER_H_
 
+#include <atomic>
 #include <mutex>
 
 extern "C"
@@ -13,6 +14,7 @@ extern "C"
 }
 
 #include "common/media_info.h"
+#include "util/decode_frame.h"
 
 class FFmpegWriter
 {
@@ -22,24 +24,29 @@ public:
 
     void set_media(const MediaInfo& media);
 
-    bool Open(AVStream* stream);
-    bool Write(AVFrame* frame);
+    bool Open(const EncodeDataInfo& info);
+    bool Write(const DecodeFrame& frame);
     void Close();
 
-private:
-    static void FFmpegError(int error_code);
+    bool opened() const { return opened_; };
 
-    bool AllocResource();
+    void Stop() { stop_ = true; }
+    bool is_stop() const { return stop_; };
+
+private:
     void FreeResource();
 
 private:
-    std::unique_ptr<MediaInfo> media_;
+    MediaInfo media_;
+    std::atomic<bool> opened_;
+    std::atomic<bool> stop_;
 
     AVFormatContext* fmt_ctx_;
     AVCodec* codec_;
     AVCodecContext* codec_ctx_;
-    AVStream* new_stream_;
+    AVStream* video_stream_;
 
+    AVFrame* frame_;
     AVPacket* packet_;
 
     bool header_written_;
