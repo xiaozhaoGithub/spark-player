@@ -48,6 +48,7 @@ private:
     void FillEncodeData();
 
     static AVPixelFormat GetDstPixFormat();
+    static void AlignSize(int src_w, int src_h, int* dst_w, int* dst_h);
 
     bool InputFmt(std::string& url, AVInputFormat** fmt);
     AVDictionary* InputFmtOptions();
@@ -58,7 +59,6 @@ private:
 
     bool GpuDataToCpu(AVFrame* src, AVFrame* dst) const;
 
-    void AlignSize(int src_w, int src_h, int* dst_w, int* dst_h);
     bool Scale(AVFrame* src);
 
     // callback

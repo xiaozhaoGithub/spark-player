@@ -461,6 +461,12 @@ AVPixelFormat FFmpegDecoder::GetDstPixFormat()
     return dst_pix_fmt;
 }
 
+void FFmpegDecoder::AlignSize(int src_w, int src_h, int* dst_w, int* dst_h)
+{
+    *dst_w = src_w >> 2 << 2;
+    *dst_h = src_h;
+}
+
 void FFmpegDecoder::ResizeDecodeFrame(int dst_w, int dst_h, int dst_pix_fmt)
 {
     // Default alloc size as same as RGBA.
@@ -507,12 +513,6 @@ bool FFmpegDecoder::GpuDataToCpu(AVFrame* src, AVFrame* dst) const
     av_frame_copy_props(dst, src);
 
     return true;
-}
-
-void FFmpegDecoder::AlignSize(int src_w, int src_h, int* dst_w, int* dst_h)
-{
-    *dst_w = src_w >> 2 << 2;
-    *dst_h = src_h;
 }
 
 bool FFmpegDecoder::Scale(AVFrame* src)

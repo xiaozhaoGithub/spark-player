@@ -24,7 +24,7 @@ public:
 
     void set_media(const MediaInfo& media);
 
-    bool Open(const EncodeDataInfo& info);
+    bool Open(const EncodeDataInfo& encode_info);
     bool Write(const DecodeFrame& frame);
     void Close();
 

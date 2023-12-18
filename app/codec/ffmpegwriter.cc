@@ -10,6 +10,7 @@ FFmpegWriter::FFmpegWriter()
     , codec_(nullptr)
     , codec_ctx_(nullptr)
     , video_stream_(nullptr)
+    , frame_(nullptr)
     , packet_(nullptr)
     , header_written_(false)
     , frame_index_(0)
@@ -131,7 +132,8 @@ bool FFmpegWriter::Write(const DecodeFrame& frame)
 {
     frame_->pts = frame_index_++;
 
-    av_image_fill_arrays(frame_->data, frame_->linesize, (const uint8_t*)frame.buf.base,
+    av_image_fill_arrays(frame_->data, frame_->linesize,
+                         reinterpret_cast<const uint8_t*>(frame.buf.base),
                          static_cast<AVPixelFormat>(frame_->format), frame_->width, frame_->height, 1);
 
     std::unique_lock<std::mutex> lock(mutex_);
