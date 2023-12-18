@@ -26,6 +26,7 @@ void RenderWndGL::Render(const DecodeFrame& frame)
         tex_width /= 2;
         tex_height /= 2;
         ResetTexYuv(frame, tex_width, tex_height);
+        break;
     }
     case PIX_FMT_YUVJ422P: {
         tex_width = tex_width / 2;

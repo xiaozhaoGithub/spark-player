@@ -201,7 +201,7 @@ void FFmpegDecoder::DoScalePrepare()
     ResizeDecodeFrame(dst_w, dst_h, dst_pix_fmt);
 }
 
-static int compression_type(int codec_id)
+static EncodeFormat compression_type(AVCodecID codec_id)
 {
     switch (codec_id) {
     case AV_CODEC_ID_H264:
@@ -223,10 +223,10 @@ void FFmpegDecoder::FillEncodeData()
     int dst_h;
     AlignSize(src_w, src_h, &dst_w, &dst_h);
 
-    info_.w = dst_w;
-    info_.h = dst_h;
-    info_.fps = fps_;
-    info_.compression = compression_type(codec_ctx_->codec_id);
+    encode_info_.w = dst_w;
+    encode_info_.h = dst_h;
+    encode_info_.fps = fps_;
+    encode_info_.compression = compression_type(codec_ctx_->codec_id);
 }
 
 void FFmpegDecoder::Close()
@@ -407,7 +407,7 @@ AVDictionary* FFmpegDecoder::InputFmtOptions()
         av_dict_set(&dict, "timeout", "5000000", 0); // 5s
     }
     av_dict_set(&dict, "max_delay", "3", 0);
-    av_dict_set(&dict, "buffer_size", "20480000", 0);
+    av_dict_set(&dict, "buffer_size", "2048000", 0);
 
     return dict;
 }
@@ -511,8 +511,8 @@ bool FFmpegDecoder::GpuDataToCpu(AVFrame* src, AVFrame* dst) const
 
 void FFmpegDecoder::AlignSize(int src_w, int src_h, int* dst_w, int* dst_h)
 {
-    int dst_w = src_w >> 2 << 2;
-    int dst_h = src_h;
+    *dst_w = src_w >> 2 << 2;
+    *dst_h = src_h;
 }
 
 bool FFmpegDecoder::Scale(AVFrame* src)

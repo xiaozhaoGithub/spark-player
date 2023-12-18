@@ -4,5 +4,7 @@ set(Sources
 	widget/video_display/video_display_widget.h
 	widget/video_display/video_widget.cc
 	widget/video_display/video_widget.h
+	widget/video_display/video_menu.cc
+	widget/video_display/video_menu.h
 	PARENT_SCOPE
 )

@@ -71,7 +71,6 @@ bool FFVideoPlayer::DoPrepare()
         event_cb(kOpenStreamFail);
         return false;
     }
-    info_ = decoder_->encode_data_info();
 
     fps_ = decoder_->fps();
     set_sleep_policy(kUntil, 1000 / fps_);
@@ -122,7 +121,7 @@ void FFVideoPlayer::DoRecordTask(DecodeFrame* frame)
 
     if (frame) {
         if (!writer_->opened()) {
-            bool opened = writer_->Open(info_);
+            bool opened = writer_->Open(*decoder_->encode_data_info());
             if (!opened) {
                 writer_->Stop();
             }

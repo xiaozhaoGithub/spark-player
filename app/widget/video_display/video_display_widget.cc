@@ -21,7 +21,6 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
 
     video_widget_ = new VideoWidget(this);
     connect(video_widget_, &VideoWidget::StreamClosed, this, [this] { PlayStateChanged(false); });
-    // connect(player_, &RenderWndGL::RecordState, this, &VideoDisplayWidget::RecordState);
 
     auto fill_bg_wiget = new QWidget(this);
 
@@ -40,23 +39,9 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     play_stop_widget_->setCurrentWidget(play_btn_);
     play_stop_widget_->setFixedHeight(32);
 
-    record_btn_ = new QPushButton(tr("Record"), this);
-    record_btn_->setFixedHeight(32);
-
-    stop_record_btn_ = new QPushButton(tr("Stop Record"), this);
-    stop_record_btn_->setFixedHeight(32);
-
-    record_widget_ = new QStackedWidget(this);
-    record_widget_->addWidget(record_btn_);
-    record_widget_->addWidget(stop_record_btn_);
-    record_widget_->setCurrentWidget(record_btn_);
-    record_widget_->setFixedHeight(32);
-
     connect(play_btn_, &QPushButton::clicked, this, &VideoDisplayWidget::PlayClicked);
     connect(pause_btn_, &QPushButton::clicked, this, &VideoDisplayWidget::PauseClicked);
     connect(stop_btn, &QPushButton::clicked, this, &VideoDisplayWidget::StopClicked);
-    connect(record_btn_, &QPushButton::clicked, this, &VideoDisplayWidget::RecordClicked);
-    connect(stop_record_btn_, &QPushButton::clicked, this, &VideoDisplayWidget::StopRecordClicked);
 
     auto software_dc = new QRadioButton(tr("Soft Decoding"), this);
     auto hardware_dc = new QRadioButton(tr("Hard Decoding"), this);
@@ -79,7 +64,6 @@ VideoDisplayWidget::VideoDisplayWidget(QWidget* parent)
     btn_layout->addWidget(hardware_dc);
     btn_layout->addWidget(play_stop_widget_);
     btn_layout->addWidget(stop_btn);
-    btn_layout->addWidget(record_widget_);
 
     auto main_layout = new QVBoxLayout(this);
     main_layout->addWidget(video_widget_, 9);
@@ -108,16 +92,6 @@ void VideoDisplayWidget::StopClicked()
     PlayStateChanged(false);
 }
 
-void VideoDisplayWidget::RecordClicked()
-{
-    video_widget_->StartRecord();
-}
-
-void VideoDisplayWidget::StopRecordClicked()
-{
-    video_widget_->StopRecord();
-}
-
 void VideoDisplayWidget::DecodeBtnClicked(int id)
 {
     Singleton<Config>::Instance()->SetAppConfigData("video_param", "enable_hw_decode", (bool)id);
@@ -126,11 +100,6 @@ void VideoDisplayWidget::DecodeBtnClicked(int id)
 void VideoDisplayWidget::PlayStateChanged(bool playing)
 {
     play_stop_widget_->setCurrentWidget(playing ? pause_btn_ : play_btn_);
-}
-
-void VideoDisplayWidget::RecordState(bool recording)
-{
-    record_widget_->setCurrentWidget(recording ? stop_record_btn_ : record_btn_);
 }
 
 void VideoDisplayWidget::SelectMediaClicked()

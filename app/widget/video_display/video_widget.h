@@ -3,6 +3,7 @@
 
 #include <QContextMenuEvent>
 
+#include "video_menu.h"
 #include "media_play/ffmpeg/ff_videoplayer.h"
 #include "media_play/stream_event_type.h"
 #include "render/opengl/render_wnd_gl.h"
@@ -17,8 +18,6 @@ public:
     void Open(const MediaInfo& media);
     void Pause();
     void Stop();
-    void StartRecord();
-    void StopRecord();
 
 signals:
     void StreamClosed();
@@ -36,7 +35,6 @@ private:
     };
 
     void InitUi();
-    void InitMenu();
 
     void Start(const MediaInfo& media);
     void Resume();
@@ -52,11 +50,13 @@ private:
 private slots:
     void OnEventProcess(StreamEventType type);
     void OnRender();
-    void FullScreenClicked();
-    void ExitFullScreenClicked();
+    void FullScreen();
+    void ExitFullScreen();
+    void StartRecording();
+    void StopRecording();
 
 private:
-    QMenu* menu_;
+    VideoMenu* menu_;
 
     // decode
     VideoPlayer* video_player_;

@@ -39,7 +39,6 @@ private:
     std::unique_ptr<FFmpegWriter> writer_;
 
     QByteArray filename_;
-    EncodeDataInfo info_;
 };
 
 #endif

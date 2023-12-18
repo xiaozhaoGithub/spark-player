@@ -23,12 +23,9 @@ private slots:
     void PlayClicked();
     void PauseClicked();
     void StopClicked();
-    void RecordClicked();
-    void StopRecordClicked();
     void DecodeBtnClicked(int id);
 
     void PlayStateChanged(bool playing);
-    void RecordState(bool recording);
 
 private:
     VideoWidget* video_widget_;
@@ -37,10 +34,6 @@ private:
     QPushButton* play_btn_;
     QPushButton* pause_btn_;
     QStackedWidget* play_stop_widget_;
-
-    QPushButton* record_btn_;
-    QPushButton* stop_record_btn_;
-    QStackedWidget* record_widget_;
 
     MediaInfo media_;
 };

@@ -22,18 +22,18 @@ void FFmpegWriter::set_media(const MediaInfo& media)
     media_ = media;
 }
 
-bool FFmpegWriter::Open(const EncodeDataInfo& info)
+bool FFmpegWriter::Open(const EncodeDataInfo& encode_info)
 {
     const char* filename = media_.src.c_str();
     SPDLOG_INFO("Record filename: {0}", filename);
 
     AVCodecID codec_id = AV_CODEC_ID_NONE;
     AVPixelFormat pix_fmt = AV_PIX_FMT_YUV420P;
-    if (info.compression == H264) {
+    if (encode_info.compression == H264) {
         codec_id = AV_CODEC_ID_H264;
-    } else if (info.compression == HEVC) {
+    } else if (encode_info.compression == HEVC) {
         codec_id = AV_CODEC_ID_HEVC;
-    } else if (info.compression == MJPEG) {
+    } else if (encode_info.compression == MJPEG) {
         codec_id = AV_CODEC_ID_MJPEG;
         pix_fmt = AV_PIX_FMT_YUVJ420P;
     }
@@ -71,10 +71,10 @@ bool FFmpegWriter::Open(const EncodeDataInfo& info)
     // Set some necessary parameters before opening the encoder.
     codec_ctx_->bit_rate = 8500000;
     // Resolution must be a multiple of two
-    codec_ctx_->width = info.w;
-    codec_ctx_->height = info.h;
-    codec_ctx_->time_base = {1, info.fps};
-    codec_ctx_->framerate = {info.fps, 1};
+    codec_ctx_->width = encode_info.w;
+    codec_ctx_->height = encode_info.h;
+    codec_ctx_->time_base = {1, encode_info.fps};
+    codec_ctx_->framerate = {encode_info.fps, 1};
     codec_ctx_->gop_size = 10;
     codec_ctx_->max_b_frames = 0;
     codec_ctx_->pix_fmt = pix_fmt;

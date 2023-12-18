@@ -30,7 +30,7 @@ public:
     int GetPacket(AVPacket* pkt);
     DecodeFrame* GetFrame();
 
-    EncodeDataInfo encode_data_info() const { return info_; }
+    const EncodeDataInfo* encode_data_info() const { return &encode_info_; }
 
     int fps() const { return fps_; }
 
@@ -83,7 +83,7 @@ private:
     uint8_t* data_[4];
     int linesize_[4];
 
-    EncodeDataInfo info_;
+    EncodeDataInfo encode_info_;
 
     int64_t block_start_time_;
     int64_t block_timeout_;
