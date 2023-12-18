@@ -53,7 +53,7 @@ quint32 Config::GetConfigFileDir(char* filename, quint32 size)
 
     const char* pos = strchr(system_path, '\\');
     system_path[pos - system_path] = '\0';
-    strcat(system_path, "\\ProgramData\\ffmpeg-player\\");
+    strcat(system_path, "\\ProgramData\\spark-player\\");
 
     memset(filename, 0, size);
     memcpy(filename, system_path, (std::min<size_t>)(strlen(system_path), size));
