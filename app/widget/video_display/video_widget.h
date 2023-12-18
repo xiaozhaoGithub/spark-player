@@ -35,8 +35,6 @@ private:
     };
 
     void InitUi();
-
-    void Start(const MediaInfo& media);
     void Resume();
 
     // event cb

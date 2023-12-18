@@ -27,7 +27,20 @@ VideoWidget::~VideoWidget()
 
 void VideoWidget::Open(const MediaInfo& media)
 {
-    Start(media);
+    if (!video_player_) {
+        video_player_ = VideoPlayerFactory::Create(media.type);
+        if (!video_player_) {
+            return;
+        }
+
+        video_player_->set_media(media);
+        video_player_->set_event_cb(
+            std::bind(&VideoWidget::StreamEventCallback, this, std::placeholders::_1));
+
+        video_player_->Start();
+    } else {
+        Resume();
+    }
 }
 
 void VideoWidget::Pause()
@@ -84,20 +97,6 @@ void VideoWidget::InitUi()
     render_timer_ = new QTimer(this);
     render_timer_->setTimerType(Qt::PreciseTimer);
     connect(render_timer_, &QTimer::timeout, this, &VideoWidget::OnRender);
-}
-
-void VideoWidget::Start(const MediaInfo& media)
-{
-    if (!video_player_) {
-        video_player_ = VideoPlayerFactory::Create(media.type);
-        video_player_->set_media(media);
-        video_player_->set_event_cb(
-            std::bind(&VideoWidget::StreamEventCallback, this, std::placeholders::_1));
-
-        video_player_->Start();
-    } else {
-        Resume();
-    }
 }
 
 void VideoWidget::Resume()

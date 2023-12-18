@@ -75,6 +75,12 @@ VideoDisplayWidget::~VideoDisplayWidget() {}
 
 void VideoDisplayWidget::PlayClicked()
 {
+    QString url(media_.src.c_str());
+    if (url.trimmed().isEmpty()) {
+        QMessageBox::warning(this, tr("warning"), tr("Please select a media file"));
+        return;
+    }
+
     video_widget_->Open(media_);
 
     PlayStateChanged(true);
