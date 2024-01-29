@@ -11,6 +11,7 @@ add_subdirectory(common)
 add_subdirectory(config)
 add_subdirectory(util)
 add_subdirectory(media_play)
+add_subdirectory(audio)
 
 QT5_ADD_RESOURCES(RCC_FILES spark-player.qrc)
 

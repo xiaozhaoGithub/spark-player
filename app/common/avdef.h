@@ -24,6 +24,16 @@ typedef enum
     MJPEG,
 } EncodeFormat;
 
+typedef enum
+{
+    kS8,
+    kU8,
+    kS16,
+    kS24,
+    kS32,
+    kF32,
+} AudioSampleFormat;
+
 
 typedef struct
 {
