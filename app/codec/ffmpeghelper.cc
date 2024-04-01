@@ -11,6 +11,7 @@ extern "C"
 
 #define AUDIO_INBUF_SIZE 20480
 #define AUDIO_REFILL_THRESH 4096
+#define AV_INPUT_BUFFER_PADDING_SIZE 64
 
 FFmpegHelper::FFmpegHelper() {}
 
@@ -419,20 +420,23 @@ bool FFmpegHelper::SaveDecodeAudio(const char* infile, const char* outfile)
         return false;
     }
 
-    ret = avformat_find_stream_info(infmt_ctx, nullptr);
-    if (ret < 0) {
-        FFmpegError(ret);
-        return false;
-    }
+    AVCodecID codec_id;
+    {
+        DEFER(avformat_close_input(&infmt_ctx);)
 
-    ret = av_find_best_stream(infmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
-    if (ret < 0) {
-        FFmpegError(ret);
-        return false;
-    }
+        ret = avformat_find_stream_info(infmt_ctx, nullptr);
+        if (ret < 0) {
+            FFmpegError(ret);
+            return false;
+        }
 
-    AVCodecID codec_id = infmt_ctx->streams[ret]->codecpar->codec_id;
-    avformat_close_input(&infmt_ctx);
+        ret = av_find_best_stream(infmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
+        if (ret < 0) {
+            FFmpegError(ret);
+            return false;
+        }
+        codec_id = infmt_ctx->streams[ret]->codecpar->codec_id;
+    }
 
     AVCodec* codec = avcodec_find_decoder(codec_id);
     if (!codec) {
@@ -490,7 +494,7 @@ bool FFmpegHelper::SaveDecodeAudio(const char* infile, const char* outfile)
     }
     DEFER(av_frame_free(&decoded_frame);)
 
-    uint8_t inbuf[AUDIO_INBUF_SIZE + AUDIO_REFILL_THRESH];
+    uint8_t inbuf[AUDIO_INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
     uint8_t* data_buf = inbuf;
 
     size_t data_size = fread(inbuf, 1, AUDIO_INBUF_SIZE, infile_fp);
@@ -775,19 +779,19 @@ bool FFmpegHelper::SaveDecodeVideo(const VideoInfo& info, const char* infile, co
     }
     int video_index = ret;
 
-    AVCodecContext* codec_ctx = avcodec_alloc_context3(nullptr);
-    if (!codec_ctx) {
-        SPDLOG_ERROR("Failed to alloc codec context.");
-        return false;
-    }
-    DEFER(avcodec_free_context(&codec_ctx););
-
     AVStream* stream = fmt_ctx->streams[video_index];
     AVCodec* codec = avcodec_find_decoder(stream->codecpar->codec_id);
     if (!codec) {
         SPDLOG_ERROR("Failed to find codec.");
         return false;
     }
+
+    AVCodecContext* codec_ctx = avcodec_alloc_context3(nullptr);
+    if (!codec_ctx) {
+        SPDLOG_ERROR("Failed to alloc codec context.");
+        return false;
+    }
+    DEFER(avcodec_free_context(&codec_ctx););
 
     ret = avcodec_parameters_to_context(codec_ctx, stream->codecpar);
     if (ret < 0) {
