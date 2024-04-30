@@ -42,7 +42,7 @@ private:
     std::atomic<bool> stop_;
 
     AVFormatContext* fmt_ctx_;
-    AVCodec* codec_;
+    const AVCodec* codec_;
     AVCodecContext* codec_ctx_;
     AVStream* video_stream_;
 

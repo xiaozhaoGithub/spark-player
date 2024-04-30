@@ -9,7 +9,7 @@
 FFVideoPlayer::FFVideoPlayer(QObject* parent)
     : VideoPlayer()
     , CThread(parent)
-    , decoder_(new FFmpegDecoder)
+    , decoder_(new FFmpegProcessor)
 {}
 
 FFVideoPlayer::~FFVideoPlayer()
@@ -83,27 +83,7 @@ bool FFVideoPlayer::DoPrepare()
 
 void FFVideoPlayer::DoTask()
 {
-    while (state() != kStop) {
-        while (state() == kPause) {
-            std::this_thread::yield();
-        }
-
-        DecodeFrame* frame = decoder_->GetFrame();
-        if (frame) {
-            push_frame(frame);
-
-            CThread::Sleep();
-        } else {
-            if (decoder_->end()) {
-                set_state(kStop);
-                StopRecord();
-
-                event_cb(kStreamEnd);
-            }
-        }
-
-        DoRecordTask(frame);
-    }
+    decoder_->Start();
 }
 
 void FFVideoPlayer::DoFinish()

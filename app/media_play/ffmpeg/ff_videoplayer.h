@@ -35,7 +35,7 @@ private:
     void DoRecordTask(DecodeFrame* frame);
 
 private:
-    std::unique_ptr<FFmpegDecoder> decoder_;
+    std::unique_ptr<FFmpegProcessor> decoder_;
     std::unique_ptr<FFmpegWriter> writer_;
 
     QByteArray filename_;

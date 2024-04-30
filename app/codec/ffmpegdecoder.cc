@@ -9,8 +9,44 @@
 #include "util/cthread.h"
 #include "widget/video_display/video_display_widget.h"
 
-FFmpegDecoder::FFmpegDecoder()
-    : fmt_ctx_(nullptr)
+PacketQueue::PacketQueue()
+    : serial_num_(0)
+{
+    pkt_list = av_fifo_alloc2(1, sizeof(AVPacketInfo), AV_FIFO_FLAG_AUTO_GROW);
+}
+
+void PacketQueue::Push(AVPacket* pkt)
+{
+    AVPacketInfo pkt_info;
+    pkt_info.serial_num_ = 0;
+    pkt_info.pkt_ = av_packet_alloc();
+    if (!pkt_info.pkt_) {
+        SPDLOG_ERROR("No memory");
+        return;
+    }
+
+    av_packet_move_ref(pkt_info.pkt_, pkt);
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        av_fifo_write(pkt_list, &pkt_info, 1);
+    }
+}
+
+void PacketQueue::Pop(AVPacket* pkt)
+{
+    AVPacketInfo pkt_info;
+
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        av_fifo_read(pkt_list, &pkt_info, 1);
+    }
+
+    av_packet_move_ref(pkt, pkt_info.pkt_);
+}
+
+FFmpegProcessor::FFmpegProcessor()
+    : eof_(true)
+    , fmt_ctx_(nullptr)
     , codec_ctx_(nullptr)
     , sws_ctx_(nullptr)
     , video_stream_(nullptr)
@@ -22,8 +58,9 @@ FFmpegDecoder::FFmpegDecoder()
     , block_start_time_(0)
     , block_timeout_(10)
     , fps_(0)
-    , end_(true)
 {
+    video_queue_ = std::make_shared<PacketQueue>();
+
     memset(data_, 0, sizeof(uint8_t*) * 4);
     memset(linesize_, 0, sizeof(int) * 4);
 
@@ -37,14 +74,14 @@ FFmpegDecoder::FFmpegDecoder()
     avdevice_register_all();
 }
 
-FFmpegDecoder::~FFmpegDecoder()
+FFmpegProcessor::~FFmpegProcessor()
 {
     Close();
 }
 
 static int OnInterrupt(void* opaque)
 {
-    const FFmpegDecoder* decoder = static_cast<FFmpegDecoder*>(opaque);
+    const FFmpegProcessor* decoder = static_cast<FFmpegProcessor*>(opaque);
     if (!decoder)
         return 0;
 
@@ -57,20 +94,12 @@ static int OnInterrupt(void* opaque)
     return 0;
 }
 
-bool FFmpegDecoder::Open()
+bool FFmpegProcessor::Open()
 {
     // Auto release resource when abnormal conditions occur.
-    DEFER(if (end_) { Close(); })
+    DEFER(if (eof_) { Close(); })
 
     if (!OpenInputFormat()) {
-        return false;
-    }
-
-    if (!FindStream()) {
-        return false;
-    }
-
-    if (!OpenDecoder()) {
         return false;
     }
 
@@ -80,17 +109,25 @@ bool FFmpegDecoder::Open()
 
     DoScalePrepare();
 
-    FillEncodeData();
+    // read
+    for (;;) {
+        int ret = av_read_frame(fmt_ctx_, packet_);
+        if (ret == 0) {
+            video_queue_->Push(packet_);
+        } else if (ret == AVERROR_EOF) {
+            PushNullPacket(video_queue_, packet_, );
+            break;
+        } else {
+            FFmpegHelper::FFmpegError(ret);
+            continue;
+        }
+    }
 
-    SPDLOG_INFO("resolution: [w:{0}, h:{1}] fps:{2} frames:{3} codec name:{4}",
-                video_stream_->codecpar->width, video_stream_->codecpar->height, fps_,
-                video_stream_->nb_frames, codec_ctx_->codec->name);
-
-    end_ = false;
+    eof_ = false;
     return true;
 }
 
-int FFmpegDecoder::GetPacket(AVPacket* pkt)
+int FFmpegProcessor::GetPacket(AVPacket* pkt)
 {
     int ret;
 
@@ -117,7 +154,7 @@ static int GetCommonFmt(int format)
     }
 }
 
-DecodeFrame* FFmpegDecoder::GetFrame()
+DecodeFrame* FFmpegProcessor::GetFrame()
 {
     int ret = GetPacket(packet_);
     if (ret == 0) {
@@ -138,7 +175,7 @@ DecodeFrame* FFmpegDecoder::GetFrame()
         av_frame_unref(frame_);
 
         if (ret < 0) {
-            end_ = true;
+            eof_ = true;
         }
         return nullptr;
     }
@@ -154,6 +191,7 @@ DecodeFrame* FFmpegDecoder::GetFrame()
             return nullptr;
         }
     }
+
     decode_frame_.pict_type_ = frame->pict_type;
     ret = Scale(frame);
     av_frame_unref(frame);
@@ -165,7 +203,7 @@ DecodeFrame* FFmpegDecoder::GetFrame()
     return &decode_frame_;
 }
 
-bool FFmpegDecoder::AllocFrame()
+bool FFmpegProcessor::AllocFrame()
 {
     packet_ = av_packet_alloc();
     if (!packet_) {
@@ -187,18 +225,20 @@ bool FFmpegDecoder::AllocFrame()
     return true;
 }
 
-
-void FFmpegDecoder::DoScalePrepare()
+void FFmpegProcessor::DoScalePrepare()
 {
-    int src_w = codec_ctx_->width;
-    int src_h = codec_ctx_->height;
     int dst_w;
     int dst_h;
-    AlignSize(src_w, src_h, &dst_w, &dst_h);
+    AlignSize(video_stream_->codecpar->width, video_stream_->codecpar->height, &dst_w, &dst_h);
 
     // Convert to uniform format.
     AVPixelFormat dst_pix_fmt = GetDstPixFormat();
     ResizeDecodeFrame(dst_w, dst_h, dst_pix_fmt);
+
+    encode_info_.w = dst_w;
+    encode_info_.h = dst_h;
+    encode_info_.fps = fps_;
+    encode_info_.compression = compression_type(video_stream_->codecpar->codec_id);
 }
 
 static EncodeFormat compression_type(AVCodecID codec_id)
@@ -215,21 +255,7 @@ static EncodeFormat compression_type(AVCodecID codec_id)
     }
 }
 
-void FFmpegDecoder::FillEncodeData()
-{
-    int src_w = codec_ctx_->width;
-    int src_h = codec_ctx_->height;
-    int dst_w;
-    int dst_h;
-    AlignSize(src_w, src_h, &dst_w, &dst_h);
-
-    encode_info_.w = dst_w;
-    encode_info_.h = dst_h;
-    encode_info_.fps = fps_;
-    encode_info_.compression = compression_type(codec_ctx_->codec_id);
-}
-
-void FFmpegDecoder::Close()
+void FFmpegProcessor::Close()
 {
     if (fmt_ctx_) {
         avformat_close_input(&fmt_ctx_);
@@ -263,7 +289,7 @@ void FFmpegDecoder::Close()
     decode_frame_.buf.cleanup(); // Free memory
 }
 
-bool FFmpegDecoder::OpenInputFormat()
+bool FFmpegProcessor::OpenInputFormat()
 {
     std::string url;
     AVInputFormat* input_fmt = nullptr;
@@ -291,11 +317,6 @@ bool FFmpegDecoder::OpenInputFormat()
 
     av_dump_format(fmt_ctx_, 0, url.c_str(), 0);
 
-    return true;
-}
-
-bool FFmpegDecoder::FindStream()
-{
     int error_code = avformat_find_stream_info(fmt_ctx_, nullptr);
     if (error_code < 0) {
         SPDLOG_ERROR("Failed to find stream information.");
@@ -306,33 +327,37 @@ bool FFmpegDecoder::FindStream()
     SPDLOG_INFO("Video total time:{0}ms, [{1}].", video_duration,
                 QTime::fromMSecsSinceStartOfDay(video_duration).toString("HH:mm:ss zzz").toStdString());
 
-    int video_index = av_find_best_stream(fmt_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
-    if (video_index < 0) {
-        SPDLOG_ERROR("Failed to find a video stream.");
-        return false;
-    }
+    stream_indexs_[AVMEDIA_TYPE_VIDEO] =
+        av_find_best_stream(fmt_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+    stream_indexs_[AVMEDIA_TYPE_AUDIO] =
+        av_find_best_stream(fmt_ctx_, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
 
-    video_stream_ = fmt_ctx_->streams[video_index];
+    video_stream_ = fmt_ctx_->streams[stream_indexs_[AVMEDIA_TYPE_VIDEO]];
     fps_ = static_cast<int>(std::round(av_q2d(video_stream_->avg_frame_rate)));
+
+    audio_stream_ = fmt_ctx_->streams[stream_indexs_[AVMEDIA_TYPE_AUDIO]];
+
+    OpenStreamComponent(video_stream_, AVMEDIA_TYPE_VIDEO);
+    OpenStreamComponent(audio_stream_, AVMEDIA_TYPE_AUDIO);
 
     return true;
 }
 
-bool FFmpegDecoder::OpenDecoder()
+bool FFmpegProcessor::OpenStreamComponent(AVStream* stream, AVMediaType type)
 {
-    const AVCodec* codec = avcodec_find_decoder(video_stream_->codecpar->codec_id);
+    const AVCodec* codec = avcodec_find_decoder(stream->codecpar->codec_id);
     if (!codec) {
         SPDLOG_ERROR("Failed to find Codec.");
         return false;
     }
 
-    codec_ctx_ = avcodec_alloc_context3(codec);
-    if (!codec_ctx_) {
+    AVCodecContext* codec_ctx = avcodec_alloc_context3(codec);
+    if (!codec_ctx) {
         SPDLOG_ERROR("Failed to create video decoder context.");
         return false;
     }
 
-    int error_code = avcodec_parameters_to_context(codec_ctx_, video_stream_->codecpar);
+    int error_code = avcodec_parameters_to_context(codec_ctx, stream->codecpar);
     if (error_code < 0) {
         SPDLOG_ERROR("Failed to fill the codec context.");
         return false;
@@ -346,17 +371,32 @@ bool FFmpegDecoder::OpenDecoder()
 
     AVDictionary* dict = nullptr;
     av_dict_set(&dict, "threads", "auto", 0);
-    error_code = avcodec_open2(codec_ctx_, codec, &dict);
+    error_code = avcodec_open2(codec_ctx, codec, &dict);
     av_dict_free(&dict);
     if (error_code < 0) {
         SPDLOG_ERROR("Failed to open codec.");
         return false;
     }
 
+    SPDLOG_INFO("resolution: [w:{0}, h:{1}] fps:{2} frames:{3} codec name:{4}",
+                stream->codecpar->width, stream->codecpar->height, fps_, stream->nb_frames,
+                avcodec_get_name(stream->codecpar->codec_id));
+
+    switch (type) {
+    case AVMEDIA_TYPE_VIDEO: {
+        video_decoder_ = std::make_unique<VideoDecoder>();
+        video_decoder_->Init(codec_ctx, video_queue_);
+    } break;
+    case AVMEDIA_TYPE_AUDIO:
+        break;
+    default:
+        break;
+    }
+
     return true;
 }
 
-bool FFmpegDecoder::InputFmt(std::string& url, AVInputFormat** fmt)
+bool FFmpegProcessor::InputFmt(std::string& url, AVInputFormat** fmt)
 {
     switch (media_.type) {
     case kCapture: {
@@ -389,7 +429,7 @@ bool FFmpegDecoder::InputFmt(std::string& url, AVInputFormat** fmt)
     return true;
 }
 
-AVDictionary* FFmpegDecoder::InputFmtOptions()
+AVDictionary* FFmpegProcessor::InputFmtOptions()
 {
     AVDictionary* dict = nullptr;
     if (media_.type == kNetwork) {
@@ -412,7 +452,7 @@ AVDictionary* FFmpegDecoder::InputFmtOptions()
     return dict;
 }
 
-void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
+void FFmpegProcessor::InitHwDecode(const AVCodec* codec)
 {
     for (int i = 0;; i++) {
         const AVCodecHWConfig* hw_config = avcodec_get_hw_config(codec, i);
@@ -444,7 +484,7 @@ void FFmpegDecoder::InitHwDecode(const AVCodec* codec)
     }
 }
 
-AVPixelFormat FFmpegDecoder::GetDstPixFormat()
+AVPixelFormat FFmpegProcessor::GetDstPixFormat()
 {
     std::string dst_pix_fmt_str =
         Singleton<Config>::Instance()->AppConfigData("video_param", "dst_pix_fmt").toString().toStdString();
@@ -461,13 +501,13 @@ AVPixelFormat FFmpegDecoder::GetDstPixFormat()
     return dst_pix_fmt;
 }
 
-void FFmpegDecoder::AlignSize(int src_w, int src_h, int* dst_w, int* dst_h)
+void FFmpegProcessor::AlignSize(int src_w, int src_h, int* dst_w, int* dst_h)
 {
     *dst_w = src_w >> 2 << 2;
     *dst_h = src_h;
 }
 
-void FFmpegDecoder::ResizeDecodeFrame(int dst_w, int dst_h, int dst_pix_fmt)
+void FFmpegProcessor::ResizeDecodeFrame(int dst_w, int dst_h, int dst_pix_fmt)
 {
     // Default alloc size as same as RGBA.
     decode_frame_.buf.resize(dst_w * dst_h * 4);
@@ -492,7 +532,7 @@ void FFmpegDecoder::ResizeDecodeFrame(int dst_w, int dst_h, int dst_pix_fmt)
     }
 }
 
-bool FFmpegDecoder::GpuDataToCpu(AVFrame* src, AVFrame* dst) const
+bool FFmpegProcessor::GpuDataToCpu(AVFrame* src, AVFrame* dst) const
 {
     const AVPixelFormat* format = static_cast<const AVPixelFormat*>(codec_ctx_->opaque);
     if (src->format != *format) {
@@ -515,7 +555,7 @@ bool FFmpegDecoder::GpuDataToCpu(AVFrame* src, AVFrame* dst) const
     return true;
 }
 
-bool FFmpegDecoder::Scale(AVFrame* src)
+bool FFmpegProcessor::Scale(AVFrame* src)
 {
     AVPixelFormat dst_pix_fmt = GetDstPixFormat();
     if (!sws_ctx_) {
@@ -541,7 +581,13 @@ bool FFmpegDecoder::Scale(AVFrame* src)
     return true;
 }
 
-AVPixelFormat FFmpegDecoder::get_hw_format(AVCodecContext* ctx, const AVPixelFormat* fmt)
+void FFmpegProcessor::PushNullPacket(std::shared_ptr<PacketQueue> queue, AVPacket* pkt, int stream_index)
+{
+    pkt->stream_index = stream_index;
+    queue->Push(pkt);
+}
+
+AVPixelFormat FFmpegProcessor::get_hw_format(AVCodecContext* ctx, const AVPixelFormat* fmt)
 {
     const AVPixelFormat* pix_fmt = static_cast<const AVPixelFormat*>(ctx->opaque);
 
@@ -553,4 +599,13 @@ AVPixelFormat FFmpegDecoder::get_hw_format(AVCodecContext* ctx, const AVPixelFor
 
     SPDLOG_ERROR("Failed to get hardware pixel format, AV_PIX_FMT_NONE will return.");
     return AV_PIX_FMT_NONE;
+}
+
+void VideoDecoder::Decode()
+{
+    AVPacket pkt;
+    pkt_queue_->Pop(&pkt);
+
+
+    avcodec_send_packet(, &pkt);
 }
