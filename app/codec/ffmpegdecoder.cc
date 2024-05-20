@@ -9,26 +9,115 @@
 #include "util/cthread.h"
 #include "widget/video_display/video_display_widget.h"
 
-PacketQueue::PacketQueue()
-    : serial_num_(0)
+void Decoder::Init(AVCodecContext* codec_ctx, std::shared_ptr<PacketQueue> pkt_queue,
+                   std::shared_ptr<FrameQueue> frame_queue)
 {
-    pkt_list = av_fifo_alloc2(1, sizeof(AVPacketInfo), AV_FIFO_FLAG_AUTO_GROW);
+    codec_ctx_ = codec_ctx;
+    pkt_queue_ = pkt_queue;
+    frame_queue_ = frame_queue;
+    thread_ = std::make_unique<std::thread>(&Decoder::Decode, this);
+}
+
+void Decoder::Decode()
+{
+    auto frame = av_frame_alloc();
+
+    Frame* frame_writable = nullptr;
+    for (;;) {
+        if (!(frame_writable = frame_queue_->PeekWritable())) {
+            return;
+        }
+
+        AVPacket pkt;
+        pkt_queue_->Pop(&pkt);
+
+        DecodeOneFrame(pkt, frame);
+
+        av_frame_move_ref(frame_writable->frame_, frame);
+        frame_writable->serial_ = 0;
+
+        frame_queue_->Push();
+    }
+}
+
+void VideoDecoder::DecodeOneFrame(const AVPacket& pkt, AVFrame* frame)
+{
+    int ret = avcodec_send_packet(codec_ctx_, &pkt);
+    if (ret != 0) {
+        SPDLOG_WARN("Failed to send packet to codec.");
+    }
+
+    avcodec_receive_frame(codec_ctx_, frame);
+}
+
+void FrameQueue::Push()
+{
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        size_++;
+        write_index_ = ++write_index_ % max_size_;
+    }
+}
+
+FrameQueue::FrameQueue(int max_size)
+    : serial_(-1)
+    , max_size_(max_size)
+    , size_(0)
+    , write_index_(0)
+{}
+
+bool FrameQueue::InitFrameQueue()
+{
+    memset(frame_queue_, 0, sizeof(Frame) * FRAME_QUEUE_SIZE);
+    for (int i = 0; i < max_size_; i++) {
+        frame_queue_[i].serial_ = -1;
+        frame_queue_[i].frame_ = av_frame_alloc();
+        if (!frame_queue_[i].frame_) {
+            SPDLOG_ERROR("Failed to alloc queue frame, index: {0}", i);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+Frame* FrameQueue::PeekWritable()
+{
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        while (size_ >= max_size_) {
+            cv_.wait(lock);
+        }
+    }
+
+    if (false) {
+        return nullptr;
+    }
+
+    return &frame_queue_[write_index_];
+}
+
+
+PacketQueue::PacketQueue()
+    : serial_(0)
+{
+    pkt_list_ = av_fifo_alloc2(1, sizeof(AVPacketInfo), AV_FIFO_FLAG_AUTO_GROW);
 }
 
 void PacketQueue::Push(AVPacket* pkt)
 {
     AVPacketInfo pkt_info;
-    pkt_info.serial_num_ = 0;
+    pkt_info.serial_ = 0;
     pkt_info.pkt_ = av_packet_alloc();
     if (!pkt_info.pkt_) {
-        SPDLOG_ERROR("No memory");
+        SPDLOG_ERROR("Failed to alloc packet, no memory");
         return;
     }
 
     av_packet_move_ref(pkt_info.pkt_, pkt);
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        av_fifo_write(pkt_list, &pkt_info, 1);
+        av_fifo_write(pkt_list_, &pkt_info, 1);
     }
 }
 
@@ -38,7 +127,7 @@ void PacketQueue::Pop(AVPacket* pkt)
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        av_fifo_read(pkt_list, &pkt_info, 1);
+        av_fifo_read(pkt_list_, &pkt_info, 1);
     }
 
     av_packet_move_ref(pkt, pkt_info.pkt_);
@@ -115,7 +204,16 @@ bool FFmpegProcessor::Open()
         if (ret == 0) {
             video_queue_->Push(packet_);
         } else if (ret == AVERROR_EOF) {
-            PushNullPacket(video_queue_, packet_, );
+            if (stream_indexs_[AVMEDIA_TYPE_VIDEO] >= 0) {
+                PushNullPacket(video_queue_, packet_, stream_indexs_[AVMEDIA_TYPE_VIDEO]);
+            }
+            /*  if (stream_indexs_[AVMEDIA_TYPE_AUDIO] >= 0) {
+                  PushNullPacket(video_queue_, packet_, stream_indexs_[]);
+              }
+
+              if (stream_indexs_[AVMEDIA_TYPE_SUBTITLE] >= 0) {
+                  PushNullPacket(video_queue_, packet_, stream_indexs_[]);
+              }*/
             break;
         } else {
             FFmpegHelper::FFmpegError(ret);
@@ -385,7 +483,12 @@ bool FFmpegProcessor::OpenStreamComponent(AVStream* stream, AVMediaType type)
     switch (type) {
     case AVMEDIA_TYPE_VIDEO: {
         video_decoder_ = std::make_unique<VideoDecoder>();
-        video_decoder_->Init(codec_ctx, video_queue_);
+        video_decoder_->Init(codec_ctx, video_queue_, video_frame_queue_);
+
+        video_frame_queue_ = std::make_unique<FrameQueue>(VIDEO_PICTURE_QUEUE_SIZE);
+        if (!video_frame_queue_->InitFrameQueue()) {
+            return false;
+        }
     } break;
     case AVMEDIA_TYPE_AUDIO:
         break;
@@ -599,13 +702,4 @@ AVPixelFormat FFmpegProcessor::get_hw_format(AVCodecContext* ctx, const AVPixelF
 
     SPDLOG_ERROR("Failed to get hardware pixel format, AV_PIX_FMT_NONE will return.");
     return AV_PIX_FMT_NONE;
-}
-
-void VideoDecoder::Decode()
-{
-    AVPacket pkt;
-    pkt_queue_->Pop(&pkt);
-
-
-    avcodec_send_packet(, &pkt);
 }

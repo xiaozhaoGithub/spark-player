@@ -1,6 +1,7 @@
 #ifndef FFmpegProcessor_H_
 #define FFmpegProcessor_H_
 
+#include <mutex>
 #include <vector>
 
 extern "C"
@@ -16,43 +17,47 @@ extern "C"
 #include "common/media_info.h"
 #include "util/decode_frame.h"
 
-class Decoder
-{
-public:
-    Decoder() = default;
-    virtual ~Decoder() { thread_->join(); }
+#define VIDEO_PICTURE_QUEUE_SIZE 3
+#define SUBPICTURE_QUEUE_SIZE 16
+#define SAMPLE_QUEUE_SIZE 9
 
-    void Init(AVCodecContext* codec_ctx, std::shared_ptr<PacketQueue> pkt_queue)
-    {
-        codec_ctx_ = codec_ctx;
-        pkt_queue_ = pkt_queue;
-        thread_ = std::make_unique<std::thread>(&Decoder::Decode, this);
-    }
-
-    virtual void Decode() = 0;
-
-protected:
-    std::unique_ptr<std::thread> thread_;
-    std::shared_ptr<PacketQueue> pkt_queue_;
-    AVCodecContext* codec_ctx_;
-};
-
-class VideoDecoder : public Decoder
-{
-public:
-    VideoDecoder() = default;
-    ~VideoDecoder() {}
-
-    void Decode() override;
-};
+#define FRAME_QUEUE_SIZE \
+    FFMAX(SAMPLE_QUEUE_SIZE, FFMAX(VIDEO_PICTURE_QUEUE_SIZE, SUBPICTURE_QUEUE_SIZE))
 
 struct AVPacketInfo
 {
     AVPacketInfo();
 
-    int serial_num_;
+    int serial_;
     AVPacket* pkt_;
 };
+
+struct Frame
+{
+    AVFrame* frame_;
+    int serial_;
+};
+
+class FrameQueue
+{
+public:
+    explicit FrameQueue(int max_size);
+
+    bool InitFrameQueue();
+    Frame* PeekWritable();
+    void Push();
+
+    // TODO
+    int serial_;
+    int max_size_;
+    int size_;
+    int write_index_;
+    Frame frame_queue_[FRAME_QUEUE_SIZE];
+
+    std::mutex mutex_;
+    std::condition_variable cv_;
+};
+
 
 class PacketQueue
 {
@@ -63,23 +68,38 @@ public:
     void Pop(AVPacket* pkt);
 
 private:
-    int serial_num_;
-    AVFifo* pkt_list;
+    int serial_;
+    AVFifo* pkt_list_;
     std::mutex mutex_;
 };
 
-class FrameQueue
+class Decoder
 {
 public:
-    FrameQueue();
+    Decoder() = default;
+    virtual ~Decoder() { thread_->join(); }
 
-    void Push(AVPacket* pkt);
-    void Pop(AVPacket* pkt);
+    void Init(AVCodecContext* codec_ctx, std::shared_ptr<PacketQueue> pkt_queue,
+              std::shared_ptr<FrameQueue> frame_queue);
 
-private:
-    int serial_num_;
-    AVFifo* pkt_list;
-    std::mutex mutex_;
+    void Decode();
+
+    virtual void DecodeOneFrame(const AVPacket& pkt, AVFrame* frame) = 0;
+
+protected:
+    std::unique_ptr<std::thread> thread_;
+    std::shared_ptr<PacketQueue> pkt_queue_;
+    std::shared_ptr<FrameQueue> frame_queue_;
+    AVCodecContext* codec_ctx_;
+};
+
+class VideoDecoder : public Decoder
+{
+public:
+    VideoDecoder() = default;
+    ~VideoDecoder() {}
+
+    void DecodeOneFrame(const AVPacket& pkt, AVFrame* frame) override;
 };
 
 class FFmpegProcessor
@@ -109,10 +129,8 @@ public:
 private:
     bool OpenInputFormat();
     bool OpenStreamComponent(AVStream* stream, AVMediaType type);
-    bool OpenDecoder();
     bool AllocFrame();
     void DoScalePrepare();
-    void FillEncodeData();
 
     static AVPixelFormat GetDstPixFormat();
     static void AlignSize(int src_w, int src_h, int* dst_w, int* dst_h);
@@ -163,6 +181,7 @@ private:
     int stream_indexs_[AVMEDIA_TYPE_NB];
 
     std::shared_ptr<PacketQueue> video_queue_;
+    std::shared_ptr<FrameQueue> video_frame_queue_;
     std::unique_ptr<Decoder> video_decoder_;
 };
 
